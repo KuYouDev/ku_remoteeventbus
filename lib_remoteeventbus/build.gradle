@@ -7,8 +7,6 @@ group='com.github.kuyoudev'
 //配套软硬件配置
 ext {
     moduleName = "remoteeventbus"
-    //混淆
-    isConfuse = true;
 }
 android {
     signingConfigs {
@@ -39,12 +37,8 @@ android {
 
     buildTypes {
         release {
-            if (project.isConfuse) {
-                zipAlignEnabled project.isConfuse
-                minifyEnabled project.isConfuse
-            }else{
-                minifyEnabled false
-            }
+            zipAlignEnabled true
+            minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
             signingConfig signingConfigs.release //加入签名配置
         }

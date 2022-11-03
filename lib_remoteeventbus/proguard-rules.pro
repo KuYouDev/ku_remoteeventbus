@@ -117,7 +117,9 @@
     # public static *** e(...);
 }
 
--keep public class kuyou.common.ipc.basic.IRemoteConfig{ *; }
+-keep public interface kuyou.common.ipc.basic.IRemoteConfig{ *; }
+-keep public interface * extends kuyou.common.ipc.basic.IRemoteConfig { public <fields>; }
+
 -keep public class kuyou.common.ipc.RemoteEvent{ 
     public <methods>;
     protected <methods>;
