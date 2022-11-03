@@ -1,0 +1,150 @@
+plugins {
+    id 'com.android.library'
+    id 'com.github.dcendents.android-maven'
+}
+group='com.github.kuyoudev'
+
+//配套软硬件配置
+ext {
+    moduleName = "remoteeventbus"
+    //混淆
+    isConfuse = true;
+}
+android {
+    signingConfigs {
+        release {
+            storeFile file("${rootProject.ext.KeyStoreFllePath}")
+            storePassword KeyStorePassword
+            keyAlias KeyAlias
+            keyPassword KeyPassword
+            v1SigningEnabled true
+            v2SigningEnabled true
+        }
+    }
+    compileSdkVersion 30
+    buildToolsVersion "30.0.2"
+
+    defaultConfig {
+        minSdkVersion 21
+        targetSdkVersion 30
+        versionCode 1
+        versionName "${versionNumberCustom()}"
+        consumerProguardFiles "consumer-rules.pro"
+
+        ndk {
+            moduleName "serial_port_common"
+            abiFilters "armeabi-v7a" , "arm64-v8a"
+        }
+    }
+
+    buildTypes {
+        release {
+            if (project.isConfuse) {
+                zipAlignEnabled project.isConfuse
+                minifyEnabled project.isConfuse
+            }else{
+                minifyEnabled false
+            }
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+            signingConfig signingConfigs.release //加入签名配置
+        }
+    }
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_1_8
+        targetCompatibility JavaVersion.VERSION_1_8
+    }
+    android.libraryVariants.all { variant ->
+        variant.outputs.all { output ->
+            outputFileName = "${defaultConfig.versionName}.aar"
+        }
+    }
+}
+
+dependencies {
+    compileOnly fileTree(dir: 'libs', include: ['eventbus-3.1.1.jar'])
+
+    implementation 'androidx.appcompat:appcompat:1.1.0'
+    implementation 'com.google.android.material:material:1.1.0'
+}
+
+//added by wgx
+def versionNumberCustom() {
+
+    def buildType = "debug"
+    if (isReleaseBuildType()) {
+        buildType = "release"
+    }
+
+    return "${rootProject.ext.projectAuthorName}_${rootProject.ext.projectClientName}_${rootProject.ext.projectHardwareName}_${project.moduleName}_${buildType}_${rootProject.ext.versionDate}";
+}
+
+boolean isReleaseBuildType(){
+    for(String s : gradle.startParameter.taskNames) {
+        if (s.contains("Release") | s.contains("release")) {
+            return true
+        }
+    }
+    return false
+}
+
+task copyProguardDictionary(type: Copy) {
+    setGroup('kuyou')
+    setDescription('task study')
+    dependsOn 'createProguardDictionary2Common'
+    println "-------------------------> copy common proguard-keys <-------------------------"
+    from rootProject.rootDir.path + '/build/dictionary.txt'
+    into project.getBuildDir().path+"/outputs/aar/proguard"
+}
+
+//插入混淆字典文件
+project.tasks.whenTaskAdded { Task theTask ->
+    if (theTask.name.startsWith("assemble") | theTask.name.startsWith("install")) {
+        theTask.dependsOn(copyProguardDictionary)
+        theTask.mustRunAfter(copyProguardDictionary)
+    }
+}
+
+task createProguardDictionary2Common {
+    setGroup('kuyou')
+    setDescription('task study')
+
+    outputs.file(rootProject.rootDir.path + '/build/dictionary.txt')
+    doLast {
+        println "-------------------------> create common proguard-keys <-------------------------"
+        def r = new Random()
+        def start = r.nextInt(100) + 0x100
+        def end = start + 0x2000 // 如果字典太大了，可以将start~end范围缩小
+        def chars = (start..end)
+                .findAll { Character.isValidCodePoint(it) && Character.isJavaIdentifierPart(it) }
+                .collect { String.valueOf(Character.toChars(it)) }
+        int max = chars.size()
+        def startChars = []
+        def dict = []
+        // 筛选可用作java标识符开头的char
+        for (int i = 0; i < max; i++) {
+            char c = chars.get(i).charAt(0)
+            if (Character.isJavaIdentifierStart(c)) {
+                startChars << String.valueOf(c)
+            }
+        }
+        def startSize = startChars.size()
+        // 打乱顺序
+        Collections.shuffle(chars, r)
+        Collections.shuffle(startChars, r)
+        // 拼两个char为一个词，让字典更丰富
+        for (int i = 0; i < max; i++) {
+            def m = r.nextInt(startSize - 3)
+            def n = m + 3
+            (m..n).each { j ->
+                dict << (startChars.get(j) + chars.get(i))
+            }
+        }
+
+        def f = outputs.files.getSingleFile()
+        f.getParentFile().mkdirs()
+        f.withWriter("UTF-8") {
+            it.write(startChars.join(System.lineSeparator()))
+            it.write(dict.join(System.lineSeparator()))
+        }
+    }
+}

@@ -1,0 +1,3 @@
+include ':lib_remoteeventbus'
+include ':module_demo'
+rootProject.name = "ku_remoteeventbus"

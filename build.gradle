@@ -1,0 +1,53 @@
+// Top-level build file where you can add configuration options common to all sub-projects/modules.
+buildscript {
+    repositories {
+        google()
+        jcenter()
+    }
+    dependencies {
+        classpath "com.android.tools.build:gradle:4.1.1"
+        classpath 'com.github.dcendents:android-maven-gradle-plugin:2.1'
+
+        // NOTE: Do not place your application dependencies here; they belong
+        // in the individual module build.gradle files
+    }
+}
+
+allprojects {
+    repositories {
+        google()
+        jcenter()
+        maven { url "https://jitpack.io" }
+    }
+}
+
+task clean(type: Delete) {
+    delete rootProject.buildDir
+}
+
+//added by wgx
+
+//配套配置信息
+project.ext.myProp = 'myValue'
+ext {
+    //作者
+    projectAuthorName = "KuYou"
+
+    //客户名
+    projectClientName = "Normal"
+
+    //硬件平台
+    //u代表 Universal[通用]
+    //m代表 MultiPlatform[多平台，但不全通用]
+    //特定项目名称代表专用
+    projectHardwareName = "u"
+
+    //多模块统一日期版本
+    versionDate = new Date().format('yyyyMMdd_HHmm')
+
+    //密钥相关
+    KeyStoreFllePath = System.getenv("ANDROID_KEY_STORE_FLLE_PATH")
+    KeyStorePassword = System.getenv("ANDROID_KEY_STORE_PASSWORD")
+    KeyAlias = System.getenv("ANDROID_KEY_ALIAS")
+    KeyPassword = System.getenv("ANDROID_KEY_PASSWORD")
+}
