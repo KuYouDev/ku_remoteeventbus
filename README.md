@@ -1,0 +1,3 @@
+# ku_remoteeventbus
+1 基于EventBus扩展实现IPC
+2 基于HandlerThread实现StatusProcessBus
