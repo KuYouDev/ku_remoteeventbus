@@ -21,41 +21,39 @@ public interface IRemoteConfig {
         /**
          * action:IPC服务连接成功
          */
-        public final static int BIND_IPC_SERVICE_SUCCESS = FLAG_CODE + 0;
+        public final static int REF_DISPATCH_SERVICE_BINDER_SUCCESS = FLAG_CODE + 0;
         /**
          * action:IPC服务连接超时
          */
-        public final static int BIND_IPC_SERVICE_TIME_OUT = FLAG_CODE + 1;
+        public final static int REF_DISPATCH_SERVICE_BIND_TIME_OUT = FLAG_CODE + 1;
         /**
          * action:IPC服务连接断开
          */
-        public final static int UNBIND_IPC_SERVICE = FLAG_CODE + 2;
+        public final static int REF_DISPATCH_SERVICE_UNBIND = FLAG_CODE + 2;
 
         /**
          * action:模块远程注册成功
          */
-        public final static int CLIENT_REGISTER_SUCCESS = FLAG_CODE + 11;
+        public final static int REF_CLIENT_REGISTER_SUCCESS = FLAG_CODE + 11;
         /**
          * action:模块远程注册失败
          */
-        public final static int CLIENT_REGISTER_FAIL = FLAG_CODE + 12;
+        public final static int REF_CLIENT_REGISTER_FAIL = FLAG_CODE + 12;
         /**
          * action:模块远程断开成功
          */
-        public final static int CLIENT_UNREGISTER_SUCCESS = FLAG_CODE + 13;
-
+        public final static int REF_CLIENT_UNREGISTER = FLAG_CODE + 13;
 
         //handle status codes 1024 ~ 2046
         /**
          * action:远程事件分发失败，进行粘性缓存
          */
-        public final static int REMOTE_EVENT_DISPATCH_FAIL_STICKY = FLAG_CODE + 1024;
-
+        public final static int REF_REMOTE_EVENT_DISPATCH_FAIL_STICKY = FLAG_CODE + 1024;
 
         /**
          * action:框架事件标识[保留]
          */
-        public final static int FRAME_FLAG = FLAG_CODE + 2047;
+        public final static int REF_CODE_FLAG = FLAG_CODE + 2047;
     }
 
 }

@@ -78,19 +78,19 @@ public class HandlerClassFinder {
     /**
      * 扫描默认包下面包含的所有的Class
      *
-     * @param context U know
+     * @param context         U know
      * @param parentClassList 指定class集合的父类,此项只有第一个参数有效
      * @return 所有class的集合
      */
-    public static List<Class> getAllClasses(Context context,Class... parentClassList) throws ClassNotFoundException, IOException {
+    public static List<Class> getAllClasses(Context context, Class... parentClassList) throws ClassNotFoundException, IOException {
         String packageName = context.getPackageName();
-        if(isVMMultidexCapable()){
-           try{
-               return getAllClassesByMultiDex(context,packageName,parentClassList);
-           }catch(Exception e){
-               Log.e(TAG, Log.getStackTraceString(e));
-               return null;
-           }
+        if (isVMMultidexCapable()) {
+            try {
+                return getAllClassesByMultiDex(context, packageName, parentClassList);
+            } catch (Exception e) {
+                Log.e(TAG, Log.getStackTraceString(e));
+                return null;
+            }
         }
         String packageCodePath = context.getPackageCodePath();
         DexFile df = new DexFile(packageCodePath);
@@ -103,20 +103,20 @@ public class HandlerClassFinder {
                 //Log.d(TAG, "getAllClasses > className = " + className);
             }
         }
-        if(null == parentClassList || parentClassList.length<=0)
+        if (null == parentClassList || parentClassList.length <= 0)
             return classes;
-        return getSubClassList(context,classes,parentClassList[0]);
+        return getSubClassList(context, classes, parentClassList[0]);
     }
 
     /**
      * 通过指定包名，扫描包下面包含的所有Dex的Class
      *
-     * @param context     U know
-     * @param packageName 包名
+     * @param context         U know
+     * @param packageName     包名
      * @param parentClassList 指定class集合的父类,此项只有第一个参数有效
      * @return 所有class的集合
      */
-    public static List<Class> getAllClassesByMultiDex(Context context, String packageName,Class... parentClassList) throws PackageManager.NameNotFoundException, IOException, InterruptedException {
+    public static List<Class> getAllClassesByMultiDex(Context context, String packageName, Class... parentClassList) throws PackageManager.NameNotFoundException, IOException, InterruptedException {
         List<Class> classes = new ArrayList<>();
         final List<String> paths = getSourcePaths(context);
         final CountDownLatch parserCtl = new CountDownLatch(paths.size());
@@ -155,9 +155,9 @@ public class HandlerClassFinder {
         parserCtl.await();
 
         Log.d(TAG, "Filter " + classes.size() + " classes by packageName <" + packageName + ">");
-        if(null == parentClassList || parentClassList.length<=0)
+        if (null == parentClassList || parentClassList.length <= 0)
             return classes;
-        return getSubClassList(context,classes,parentClassList[0]);
+        return getSubClassList(context, classes, parentClassList[0]);
     }
 
     /**

@@ -1,6 +1,6 @@
-package kuyou.common.ipc.client;
+package kuyou.common.assist;
 
-import kuyou.common.ipc.RemoteEvent;
+import kuyou.common.ipc.event.RemoteEvent;
 
 /**
  * action :接口[事件分发器]

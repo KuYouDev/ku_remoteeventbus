@@ -8,14 +8,14 @@ import android.os.RemoteCallbackList;
 import android.os.RemoteException;
 import android.util.Log;
 
-import org.greenrobot.eventbus.EventBus;
-
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
 import kuyou.common.ipc.basic.IRemoteConfig;
+import kuyou.common.ipc.event.EventFrame;
+import kuyou.common.ipc.event.RemoteEvent;
 
 /**
  * action :IPC框架服务
@@ -26,27 +26,20 @@ import kuyou.common.ipc.basic.IRemoteConfig;
  * 未实现：模块注册状态回调</p>
  * 未实现：事件Code注册回调</p>
  */
-public class FrameRemoteService extends Service {
-    protected final String TAG = "kuyou.common.ipc > FrameRemoteService";
+public class RemoteEventDispatchService extends Service {
+    private static final String TAG = "kuyou.common.ipc > RemoteEventDispatchService";
 
     private RemoteCallbackList<IRemoteServiceCallBack> mCallbackList = new RemoteCallbackList<IRemoteServiceCallBack>() {
         @Override
         public void onCallbackDied(IRemoteServiceCallBack callback) {
             super.onCallbackDied(callback);
-            synchronized (FrameRemoteService.this.mModuleCallbackList) {
+            synchronized (RemoteEventDispatchService.this.mModuleCallbackList) {
                 if (mModuleCallbackList.containsKey(callback)) {
                     String packageName = mModuleCallbackList.get(callback);
                     mRegisterModuleList.remove(packageName);
                     mRegisterClientList.remove(packageName);
                 }
             }
-            EventBus.getDefault().post(new EventFrame() {
-                @Override
-                public int getCode() {
-                    return IRemoteConfig.Code.CLIENT_UNREGISTER_SUCCESS;
-                }
-            }.setRegisterClientList(mRegisterClientList)
-                    .setRemote(false));
         }
     };
 
@@ -97,16 +90,17 @@ public class FrameRemoteService extends Service {
             mCallbackList.register(cb);
             mModuleCallbackList.put(cb, packageName);
             mRegisterModuleList.add(packageName);
-            if (!FrameRemoteService.this.getApplicationContext().getPackageName().equals(packageName))
+            if (!RemoteEventDispatchService.this.getApplicationContext().getPackageName().equals(packageName))
                 mRegisterClientList.add(packageName);
 
-            EventBus.getDefault().post(new EventFrame() {
+            RemoteEventBus.getInstance().post(new EventFrame() {
                 @Override
                 public int getCode() {
-                    return IRemoteConfig.Code.CLIENT_REGISTER_SUCCESS;
+                    return IRemoteConfig.Code.REF_CLIENT_REGISTER_SUCCESS;
                 }
             }.setRegisterClientList(mRegisterModuleList)
-                    .setRemote(false));
+                    .setPolicyDispatch2Myself(true)
+                    .setRemote(true));
         }
 
         @Override

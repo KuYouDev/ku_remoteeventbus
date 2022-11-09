@@ -31,7 +31,7 @@ task clean(type: Delete) {
 project.ext.myProp = 'myValue'
 ext {
     //作者
-    projectAuthorName = "KuYou"
+    projectMainAuthorName = "KuYou"
 
     //客户名
     projectClientName = "Normal"

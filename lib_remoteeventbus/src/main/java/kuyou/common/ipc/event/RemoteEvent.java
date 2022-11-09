@@ -1,6 +1,10 @@
-package kuyou.common.ipc;
+package kuyou.common.ipc.event;
 
 import android.os.Bundle;
+import android.os.Parcelable;
+
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * action :IPC框架传递的事件
@@ -15,19 +19,19 @@ public abstract class RemoteEvent {
     protected final static String TAG = "com.kuyou.ipc > RemoteEvent";
 
     protected final static String KEY_EVENT_CODE = "keyEventData.code";
-    protected final static String KEY_EVENT_MODULE_FLAG_SOURCE = "keyEventData.moduleFlagSource";
-    protected final static String KEY_EVENT_MODULE_FLAG_TARGET = "keyEventData.moduleFlagTarget";
-    protected static final String KEY_EVENT_IS_REMOTE = "keyEventData.isRemote";
     protected final static String KEY_EVENT_START_PACKAGE_NAME = "keyEventData.packageName";
+
+    public static final String KEY_INFO = "keyEventData.info";
+    public static final String KEY_INFO_LIST = "keyEventData.infoList";
 
     protected final static int NONE = -1;
 
-    private boolean isRemote = false;
+    private Bundle mData = null;
+
+    //本地有效参数
+    private boolean isRemote = false;//标识要发送远端的事件
     private boolean isDispatch2Myself = false;
     private boolean isEnableConsumeSeparately = true;
-
-    private boolean isSticky = false;
-    private Bundle mData = null;
 
     public abstract int getCode();
 
@@ -37,19 +41,8 @@ public abstract class RemoteEvent {
 
     public RemoteEvent setRemote(boolean val) {
         isRemote = val;
-        getData().putBoolean(KEY_EVENT_IS_REMOTE, val);
         return RemoteEvent.this;
     }
-
-    public boolean isSticky() {
-        return isSticky;
-    }
-
-    public RemoteEvent setSticky(boolean val) {
-        isSticky = val;
-        return RemoteEvent.this;
-    }
-
 
     /**
      * action:发送远程事件时本地能否接收
@@ -101,7 +94,6 @@ public abstract class RemoteEvent {
 
     protected void applyData(Bundle data) {
         mData = data;
-        setRemote(data.getBoolean(KEY_EVENT_IS_REMOTE, isRemote()));
     }
 
     public static int getCodeByData(Bundle data) {
@@ -116,24 +108,54 @@ public abstract class RemoteEvent {
         return data.getString(KEY_EVENT_START_PACKAGE_NAME);
     }
 
-    public static boolean isRemote(Bundle data) {
-        return data.getBoolean(KEY_EVENT_IS_REMOTE);
+    public RemoteEvent setInfo(Parcelable val) {
+
+        Bundle bundle = new Bundle();
+        bundle.putParcelable(KEY_INFO, val);
+        bundle.setClassLoader(getClass().getClassLoader());
+
+        getData().putBundle(KEY_INFO, bundle);
+        return RemoteEvent.this;
     }
 
-//    @Override
-//    public String toString() {
-//        Bundle data = getData();
-//        String val = null;
-//        StringBuilder keyValList = new StringBuilder("");
-//        for (String key : data.keySet()) {
-//            if (null == key)
-//                continue;
-//            val = data.getString(key);
-//            if (null == val)
-//                continue;
-//            keyValList.append(key).append(" = ").append(val).append("\n");
-//            val = null;
-//        }
-//        return keyValList.toString();
-//    }
+    public RemoteEvent setInfo(BasicInfo... val) {
+
+        Bundle bundle = new Bundle();
+        bundle.putParcelableArray(KEY_INFO_LIST, val);
+        bundle.setClassLoader(getClass().getClassLoader());
+
+        getData().putBundle(KEY_INFO_LIST, bundle);
+        return RemoteEvent.this;
+    }
+
+    public static <T extends BasicInfo> T getInfo(RemoteEvent event) {
+        if (null == event || !event.getData().containsKey(KEY_INFO)) {
+            return null;
+        }
+        Bundle bundle = event.getData().getBundle(KEY_INFO);
+        bundle.setClassLoader(BasicInfo.class.getClassLoader());
+        Parcelable result = bundle.getParcelable(KEY_INFO);
+        if (!(result instanceof BasicInfo)) {
+            return null;
+        }
+        return (T) result;
+    }
+
+    public static <T extends BasicInfo> List<T> getInfoList(RemoteEvent event) {
+        if (null == event || !event.getData().containsKey(KEY_INFO_LIST)) {
+            return null;
+        }
+        Bundle bundle = event.getData().getBundle(KEY_INFO_LIST);
+        bundle.setClassLoader(BasicInfo.class.getClassLoader());
+
+        Parcelable[] baseArray = bundle.getParcelableArray(KEY_INFO_LIST);
+        if (null == baseArray || baseArray.length == 0) {
+            return null;
+        }
+        List<T> list = new ArrayList<>();
+        for (Parcelable item : baseArray) {
+            list.add((T) item);
+        }
+        return list;
+    }
 }

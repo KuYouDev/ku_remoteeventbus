@@ -27,11 +27,9 @@
 -renamesourcefileattribute SourceFile
 -keepattributes *Annotation* #保留注释
 
-#apk 包内所有 class 的内部结构
--dump         build/outputs/aar/proguard/class_files.txt
 #未混淆的类和成员
 -printseeds   build/outputs/aar/proguard/seeds.txt
-#列出从 apk 中删除的代码
+#列出删除的代码
 -printusage   build/outputs/aar/proguard/unused.txt
 #混淆前后的映射
 -printmapping build/outputs/aar/proguard/mapping.txt
@@ -120,25 +118,22 @@
 -keep public interface kuyou.common.ipc.basic.IRemoteConfig{ *; }
 -keep public interface * extends kuyou.common.ipc.basic.IRemoteConfig { public <fields>; }
 
--keep public class kuyou.common.ipc.RemoteEvent{ 
+-keep public class kuyou.common.ipc.event.RemoteEvent{ 
     public <methods>;
     protected <methods>;
 }
--keep public class kuyou.common.ipc.EventFrame
+-keep public class kuyou.common.ipc.event.EventFrame
 
 -keep public class kuyou.common.ipc.RemoteEventBus{
     public static kuyou.common.ipc.RemoteEventBus getInstance();
-    public static kuyou.common.ipc.RemoteEventBus getInstance(android.content.Context);
-    public kuyou.common.ipc.RemoteEventBus register(java.lang.Object);
-    public void unregister(java.lang.Object);
-    public boolean dispatch(kuyou.common.ipc.RemoteEvent);
+    public void binder(kuyou.common.ipc.RemoteEventBus$IRegisterConfig);
 }
--keep public class kuyou.common.ipc.RemoteEventHandler{
-    public static kuyou.common.ipc.RemoteEventHandler getInstance();
-    public kuyou.common.ipc.RemoteEventHandler setEventDispatchList(java.util.List);
-    public kuyou.common.ipc.RemoteEventHandler setLocalModulePackageName(java.lang.String);
+-keep public class kuyou.common.ipc.EventDispatcherImpl{
+    public static kuyou.common.ipc.EventDispatcherImpl getInstance();
+    public kuyou.common.ipc.EventDispatcherImpl setEventReceiveList(java.util.List);
+    public kuyou.common.ipc.EventDispatcherImpl setLocalModulePackageName(java.lang.String);
 }
--keep public class kuyou.common.ipc.client.BasicLocalModuleApplication{
+-keep public class kuyou.common.assist.BasicLocalModuleApplication{
     protected void initFrame();
     protected java.lang.String getIpcFramePackageName();
 }

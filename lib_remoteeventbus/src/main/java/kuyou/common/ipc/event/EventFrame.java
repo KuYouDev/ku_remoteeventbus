@@ -1,4 +1,4 @@
-package kuyou.common.ipc;
+package kuyou.common.ipc.event;
 
 import java.util.ArrayList;
 
