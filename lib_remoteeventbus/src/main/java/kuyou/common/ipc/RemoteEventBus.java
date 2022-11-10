@@ -12,11 +12,11 @@ import android.util.Log;
 import org.greenrobot.eventbus.EventBus;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
-import kuyou.common.assist.IEventBusDispatchCallback;
+import kuyou.common.assist.IAssistHandler;
+import kuyou.common.ipc.basic.IEventBusDispatchCallback;
 import kuyou.common.ipc.basic.IEventDispatcher;
 import kuyou.common.ipc.basic.IRemoteConfig;
 import kuyou.common.ipc.event.RemoteEvent;
@@ -63,62 +63,70 @@ public class RemoteEventBus implements IRemoteConfig {
     protected String mTagLog = "kuyou.common.ipc > RemoteEventBus";
 
     private Context mContext = null;
-    private IRegisterConfig mRegisterConfig = null;
+    private IRemoteBinderConfig mRegisterConfig = null;
     private IEventDispatcher mEventDispatcher = null;
     private IStatusProcessBus mStatusProcessBus = null;
-    private IFrameLiveListener mFrameLiveListener = null;
     private IRemoteService mEventDispatchService = null;
     private ServiceConnection mEventDispatchServiceConnection = null;
+    private List<ILiveListener> mLiveListenerList = new ArrayList<>();
 
-    public void binder(IRegisterConfig config) {
-        Log.d(mTagLog, "binder > ");
-        mRegisterConfig = config;
-        getStatusProcessBus().start(PS_NOTICE_IPC_PROCESS_AWAKEN);
-        mEventDispatcher = EventDispatcherImpl.getInstance()
-                .setLocalModulePackageName(getRegisterConfig().getContext().getPackageName())
-                .setEventReceiveList(getRegisterConfig().getEventDispatchList())
-                .setEventBusDispatchRemoteCallback(new IEventBusDispatchCallback() {
-                    //发送远程事件到远程分发服务
-                    @Override
-                    public boolean dispatchEvent(RemoteEvent event) {
-                        if (null == mEventDispatchService) {
-                            Log.e(mTagLog, "dispatchEvent > process fail :  ipc bind is null , event_code = " + event.getCode());
-                        } else {
-                            try {
-                                //Log.d(mTagLog, "mEventDispatcher > dispatchEvent > event " + event.getCode());
-                                mEventDispatchService.sendEvent(event.getData());
-                                return true;
-                            } catch (Exception e) {
-                                //Log.e(mTagLog, "mEventDispatcher > dispatchEvent > process fail : event = " + event.getCode());
-                            }
-                        }
-                        return false;
-                    }
-                });
-
-        mTagLog = new StringBuilder(mTagLog).append(" > ").append(
-                        getRegisterConfig().getContext().getPackageName()).
-                toString();
-
-        setFrameLiveListener(getRegisterConfig().getFrameLiveListener());
-    }
-
-    public boolean register(Object instance,Integer ... event_codes) {
-        if(null == mEventDispatcher){
-            Log.e(mTagLog, "register > process fail : ");
+    public boolean register(Object instance, Integer... event_codes) {
+        if (null == instance) {
+            Log.e(mTagLog, "register > process fail :instance is null");
             return false;
         }
-        EventBus.getDefault().register(instance);
-        if(null != event_codes && event_codes.length>0){
-            ArrayList<Integer> eventCodeList = new ArrayList<Integer>(event_codes.length);
-            Collections.addAll(eventCodeList, event_codes);
-            mEventDispatcher.setEventReceiveList(eventCodeList);
+        //连接远程服务
+        if (instance instanceof IRemoteBinderConfig) {
+            setRegisterConfig((IRemoteBinderConfig) instance);
+            mTagLog = new StringBuilder(mTagLog).append(" > ").append(
+                            getRegisterConfig().getContext().getPackageName()).
+                    toString();
+            Log.d(mTagLog, "binder > ");
+            getStatusProcessBus().start(PS_NOTICE_IPC_PROCESS_AWAKEN);
+            mEventDispatcher = EventDispatcherImpl.getInstance()
+                    .setLocalModulePackageName(getRegisterConfig().getContext().getPackageName());
+            return true;
         }
-        return true;
+
+        boolean result = true;
+
+        //服务注册监听器
+        if (instance instanceof ILiveListener) {
+            setLiveListener((ILiveListener) instance);
+        }
+
+        //事件过滤
+        if (null != event_codes && event_codes.length > 0) {
+            if (null == mEventDispatcher) {
+                Log.e(mTagLog, "register > process fail : eventDispatcher is null");
+                result = false;
+            } else {
+                ArrayList<Integer> eventCodeList = new ArrayList<Integer>(event_codes.length);
+                Collections.addAll(eventCodeList, event_codes);
+                mEventDispatcher.setEventReceiveList(eventCodeList);
+            }
+        }
+
+        //事件分发
+        if (instance instanceof IAssistHandler) {
+            if (null == mEventDispatcher) {
+                Log.e(mTagLog, "register > process fail : eventDispatcher is null");
+                result = false;
+            } else {
+                mEventDispatcher.setAssistHandlerConfig((IAssistHandler) instance);
+            }
+        } else {
+            EventBus.getDefault().register(instance);
+        }
+        return result;
     }
 
     public void unregister(Object instance) {
-        EventBus.getDefault().unregister(instance);
+        if (instance instanceof IAssistHandler) {
+            mEventDispatcher.setAssistHandlerConfig(null);
+        } else {
+            EventBus.getDefault().unregister(instance);
+        }
     }
 
     /**
@@ -137,12 +145,36 @@ public class RemoteEventBus implements IRemoteConfig {
         return mEventDispatcher.dispatch(event);
     }
 
-    public RemoteEventBus setFrameLiveListener(IFrameLiveListener frameLiveListener) {
-        mFrameLiveListener = frameLiveListener;
+    public RemoteEventBus setLiveListener(ILiveListener val) {
+        if (null == val) {
+            return RemoteEventBus.this;
+        }
+        Log.d(mTagLog, "setLiveListener > val = " + val);
+        mLiveListenerList.add(val);
         return RemoteEventBus.this;
     }
 
-    protected IRegisterConfig getRegisterConfig() {
+    protected void dispatchEventDispatchServiceConnectChange(final boolean isConnect) {
+        post(new RemoteEvent() {
+            @Override
+            public int getCode() {
+                return isConnect ? Code.REF_DISPATCH_SERVICE_BINDER_SUCCESS : Code.REF_DISPATCH_SERVICE_UNBIND;
+            }
+        }.setRemote(false));
+        if (0 == mLiveListenerList.size()) {
+            return;
+        }
+        for (ILiveListener listener : mLiveListenerList) {
+            listener.onEventDispatchServiceConnectChange(isConnect);
+        }
+    }
+
+    protected RemoteEventBus setRegisterConfig(IRemoteBinderConfig val) {
+        mRegisterConfig = val;
+        return RemoteEventBus.this;
+    }
+
+    protected IRemoteBinderConfig getRegisterConfig() {
         return mRegisterConfig;
     }
 
@@ -221,17 +253,31 @@ public class RemoteEventBus implements IRemoteConfig {
     private void bindIPCService(Context context) {
         mEventDispatchServiceConnection = new ServiceConnection() {
             public void onServiceConnected(ComponentName className, IBinder service) {
-                Log.d(mTagLog, "onServiceConnected: ");
-                getStatusProcessBus().stop(PS_BIND_FRAME_SERVICE_TIME_OUT);
-                mEventDispatchService = IRemoteService.Stub.asInterface(service);
-                post(new RemoteEvent() {
+                Log.d(RemoteEventBus.this.mTagLog, "onServiceConnected: ");
+                RemoteEventBus.this.getStatusProcessBus().stop(PS_BIND_FRAME_SERVICE_TIME_OUT);
+                RemoteEventBus.this.mEventDispatchService = IRemoteService.Stub.asInterface(service);
+                RemoteEventBus.this.mEventDispatcher.setRemoteCallback(new IEventBusDispatchCallback() {
+                    //发送远程事件到远程分发服务
                     @Override
-                    public int getCode() {
-                        return IRemoteConfig.Code.REF_DISPATCH_SERVICE_BINDER_SUCCESS;
+                    public boolean dispatchEvent(RemoteEvent event) {
+                        if (null == mEventDispatchService) {
+                            Log.e(mTagLog, "dispatchEvent > process fail :  ipc bind is null , event_code = " + event.getCode());
+                        } else {
+                            try {
+                                //Log.d(mTagLog, "mEventDispatcher > dispatchEvent > event " + event.getCode());
+                                mEventDispatchService.sendEvent(event.getData());
+                                return true;
+                            } catch (Exception e) {
+                                //Log.e(mTagLog, "mEventDispatcher > dispatchEvent > process fail : event = " + event.getCode());
+                            }
+                        }
+                        return false;
                     }
-                }.setRemote(false));
+                });
+                RemoteEventBus.this.dispatchEventDispatchServiceConnectChange(true);
                 try {
-                    mEventDispatchService.registerCallback(getRegisterConfig().getContext().getApplicationContext().getPackageName(),
+                    RemoteEventBus.this.mEventDispatchService.registerCallback(
+                            RemoteEventBus.this.getRegisterConfig().getContext().getApplicationContext().getPackageName(),
                             new IRemoteServiceCallBack.Stub() {
                                 @Override
                                 public void onReceiveEvent(Bundle data) {
@@ -244,20 +290,15 @@ public class RemoteEventBus implements IRemoteConfig {
                                 }
                             });
                 } catch (Exception e) {
-                    Log.e(mTagLog, Log.getStackTraceString(e));
-                    RemoteEventBus.this.onDisconnected();
+                    Log.e(RemoteEventBus.this.mTagLog, Log.getStackTraceString(e));
+                    onServiceDisconnected(null);
                 }
             }
 
             public void onServiceDisconnected(ComponentName className) {
-                mEventDispatchService = null;
-                post(new RemoteEvent() {
-                    @Override
-                    public int getCode() {
-                        return IRemoteConfig.Code.REF_DISPATCH_SERVICE_UNBIND;
-                    }
-                }.setRemote(false));
-                RemoteEventBus.this.onDisconnected();
+                RemoteEventBus.this.mEventDispatchService = null;
+                RemoteEventBus.this.mEventDispatcher.setRemoteCallback(null);
+                RemoteEventBus.this.dispatchEventDispatchServiceConnectChange(false);
                 Log.d(mTagLog, "onServiceDisconnected: ");
             }
         };
@@ -270,22 +311,7 @@ public class RemoteEventBus implements IRemoteConfig {
         context.bindService(intent, mEventDispatchServiceConnection, Context.BIND_AUTO_CREATE);
     }
 
-    protected void onDisconnected() {
-        if (null == mFrameLiveListener) {
-            //Log.d(mTagLog, "onDisconnected > mFrameLiveListener is null");
-            return;
-        }
-        post(new RemoteEvent() {
-            @Override
-            public int getCode() {
-                return Code.REF_CLIENT_UNREGISTER;
-            }
-        }.setPolicyDispatch2Myself(true)
-                .setRemote(true));
-        mFrameLiveListener.onIpcFrameUnResister();
-    }
-
-    public static interface IRegisterConfig {
+    public static interface IRemoteBinderConfig {
 
         public Context getContext();
 
@@ -293,42 +319,20 @@ public class RemoteEventBus implements IRemoteConfig {
          * action:指定IPC框架服务包名
          */
         public String getIpcFlag();
-
-        /**
-         * action:指定IPC框架状态监听器
-         */
-        public IFrameLiveListener getFrameLiveListener();
-
-        /**
-         * action:指定想要接收的远程事件ID列表
-         */
-        public List<Integer> getEventDispatchList();
     }
 
-    public static class Builder implements IRegisterConfig {
+    public static class RemoteBuilder implements IRemoteBinderConfig {
         private Context mContext = null;
         private String mIpcFlag = null;
-        private IFrameLiveListener mFrameLiveListener = null;
-        private List<Integer> mEventReceiveList = null;
 
-        public Builder setContext(Context val) {
+        public RemoteBuilder setContext(Context val) {
             mContext = val;
-            return Builder.this;
+            return RemoteBuilder.this;
         }
 
-        public Builder setIpcFlag(String val) {
+        public RemoteBuilder setIpcFlag(String val) {
             mIpcFlag = val;
-            return Builder.this;
-        }
-
-        public Builder setFrameLiveListener(IFrameLiveListener val) {
-            mFrameLiveListener = val;
-            return Builder.this;
-        }
-
-        public Builder setEventReceiveList(List<Integer> val) {
-            mEventReceiveList = val;
-            return Builder.this;
+            return RemoteBuilder.this;
         }
 
         @Override
@@ -340,21 +344,9 @@ public class RemoteEventBus implements IRemoteConfig {
         public String getIpcFlag() {
             return mIpcFlag;
         }
-
-        @Override
-        public IFrameLiveListener getFrameLiveListener() {
-            return mFrameLiveListener;
-        }
-
-        @Override
-        public List<Integer> getEventDispatchList() {
-            return mEventReceiveList;
-        }
     }
 
-    public static interface IFrameLiveListener {
-        public void onIpcFrameResisterSuccess();
-
-        public void onIpcFrameUnResister();
+    public static interface ILiveListener {
+        public void onEventDispatchServiceConnectChange(boolean isConnect);
     }
 }

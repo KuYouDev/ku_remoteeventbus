@@ -1,4 +1,4 @@
-package kuyou.common.assist;
+package kuyou.common.ipc.basic;
 
 import kuyou.common.ipc.event.RemoteEvent;
 

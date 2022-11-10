@@ -10,8 +10,8 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Queue;
 
-import kuyou.common.assist.AssistHandlerManager;
-import kuyou.common.assist.IEventBusDispatchCallback;
+import kuyou.common.assist.IAssistHandler;
+import kuyou.common.ipc.basic.IEventBusDispatchCallback;
 import kuyou.common.ipc.basic.IEventDispatcher;
 import kuyou.common.ipc.event.RemoteEvent;
 
@@ -46,7 +46,8 @@ public class EventDispatcherImpl implements IEventDispatcher<EventDispatcherImpl
     private String mLocalModulePackageName;
     private List<Integer> mEventReceiveList = null;
     private Queue<RemoteEvent> mEventsToBeSendQueue = new LinkedList<>();
-    private IEventBusDispatchCallback mEventBusDispatchRemoteCallback;
+    private IEventBusDispatchCallback mEventBusDispatchCallbackRemote,
+            mEventBusDispatchCallbackAssistHandler;
 
     @Override
     public EventDispatcherImpl setEventReceiveList(List<Integer> list) {
@@ -66,21 +67,40 @@ public class EventDispatcherImpl implements IEventDispatcher<EventDispatcherImpl
         return EventDispatcherImpl.this;
     }
 
-    public IEventBusDispatchCallback getEventBusDispatchRemoteCallback() {
-        return mEventBusDispatchRemoteCallback;
+    @Override
+    public void setRemoteCallback(IEventBusDispatchCallback val) {
+        mEventBusDispatchCallbackRemote = val;
+        performEventsToBeSend();
     }
 
-    public EventDispatcherImpl setEventBusDispatchRemoteCallback(IEventBusDispatchCallback val) {
-        mEventBusDispatchRemoteCallback = val;
-        performEventsToBeSend();
+    protected IEventBusDispatchCallback getRemoteCallback() {
+        return mEventBusDispatchCallbackRemote;
+    }
+
+    @Override
+    public EventDispatcherImpl setAssistHandlerConfig(IAssistHandler val) {
+        if (null != val) {
+            setEventReceiveList(val.getEventReceiveList());
+            mEventBusDispatchCallbackAssistHandler = val.getEventDispatchCallback();
+        }
         return EventDispatcherImpl.this;
+    }
+
+    protected IEventBusDispatchCallback getAssistHandlerCallback() {
+        return mEventBusDispatchCallbackAssistHandler;
     }
 
     public EventDispatcherImpl setLocalModulePackageName(String val) {
-        mTagLog = new StringBuilder(mTagLog).append(" > ").append(val).toString();
-        Log.d(mTagLog, "setLocalModulePackageName > ");
-        mLocalModulePackageName = val;
+        if (null != val) {
+            mTagLog = new StringBuilder(mTagLog).append(" > ").append(val).toString();
+            Log.d(mTagLog, "setLocalModulePackageName > ");
+            mLocalModulePackageName = val;
+        }
         return EventDispatcherImpl.this;
+    }
+
+    protected String getLocalModulePackageName() {
+        return mLocalModulePackageName;
     }
 
     @Override
@@ -96,39 +116,47 @@ public class EventDispatcherImpl implements IEventDispatcher<EventDispatcherImpl
                 return eventCode;
             }
         }.setData(data);
-        //协处理器处理
-        if (AssistHandlerManager.getInstance().dispatchReceiveEventNotice(event)) {
+
+        //使用协处理器分发
+        if (null != getAssistHandlerCallback()
+                && getAssistHandlerCallback().dispatchEvent(event)) {
             return;
         }
+        //用默认分发
         EventBus.getDefault().post(event);
     }
 
     @Override
     public final boolean dispatch(RemoteEvent event) {
-        if (null == getEventBusDispatchRemoteCallback()) {
-            if (mEventsToBeSendQueue.size() < 128) {
-                mEventsToBeSendQueue.offer(event);
-            } else {
-                Log.w(mTagLog, "dispatch > process fail : mEventsToBeSendQueue is full ");
-            }
-            return false;
-        }
-        boolean result = true;
+        //远程分发
         if (event.isRemote()) {
-            result = getEventBusDispatchRemoteCallback().dispatchEvent(event);
-            if (!result) {
-                Log.w(mTagLog, "dispatch > process fail : send event code = " + event.getCode());
+            boolean result = false;
+            if (null == getRemoteCallback()) {
+                if (mEventsToBeSendQueue.size() < 128) {
+                    mEventsToBeSendQueue.offer(event);
+                } else {
+                    Log.w(mTagLog, "dispatch > process fail : mEventsToBeSendQueue is full ");
+                }
+            } else {
+                event.setStartPackageName(getLocalModulePackageName());
+                event.setStartProcessID(android.os.Process.myPid());
+                result = getRemoteCallback().dispatchEvent(event);
+                if (!result) {
+                    Log.w(mTagLog, "dispatch > process fail : send event code = " + event.getCode());
+                }
             }
             if (!event.isDispatch2Myself()) {
                 return result;
             }
         }
-        //协处理器处理
-        if (AssistHandlerManager.getInstance().dispatchReceiveEventNotice(event)) {
-            return result;
+        //使用协处理器分发
+        if (null != getAssistHandlerCallback()
+                && getAssistHandlerCallback().dispatchEvent(event)) {
+            return true;
         }
+        //用默认分发
         EventBus.getDefault().post(event);
-        return result;
+        return true;
     }
 
     protected List<Integer> getEventReceiveList() {
@@ -153,7 +181,7 @@ public class EventDispatcherImpl implements IEventDispatcher<EventDispatcherImpl
     }
 
     protected void performEventsToBeSend() {
-        if (null == getEventBusDispatchRemoteCallback()) {
+        if (null == getRemoteCallback()) {
             Log.w(mTagLog, "performEventsToBeSend > process fail : dispatchEventCallBack is null");
             return;
         }

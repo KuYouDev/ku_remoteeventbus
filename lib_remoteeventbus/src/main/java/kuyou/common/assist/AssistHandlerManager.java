@@ -9,6 +9,7 @@ import java.util.List;
 import java.util.Map;
 
 import kuyou.common.ipc.RemoteEventBus;
+import kuyou.common.ipc.basic.IEventBusDispatchCallback;
 import kuyou.common.ipc.event.RemoteEvent;
 import kuyou.common.utils.HandlerClassFinder;
 
@@ -20,11 +21,15 @@ import kuyou.common.utils.HandlerClassFinder;
  * date: 21-7-23 <br/>
  * </p>
  */
-public class AssistHandlerManager implements IHandlerFinder<BasicAssistHandler,Class<?>> {
+public class AssistHandlerManager implements
+        RemoteEventBus.ILiveListener
+        , IHandlerFinder<BasicAssistHandler, Class<?>>
+        , IEventBusDispatchCallback, IAssistHandler {
 
     private volatile static AssistHandlerManager sInstance;
     private static final String TAG = "kuyou.common.assis > BasicAssistHandlerLoader";
 
+    private boolean isReady = false;
     private Context mContext;
     private Map<Class<?>, BasicAssistHandler> mRequestParserList;
     private List<BasicAssistHandler> mHandlerList;
@@ -71,15 +76,15 @@ public class AssistHandlerManager implements IHandlerFinder<BasicAssistHandler,C
         mContext = context.getApplicationContext();
         try {
             List<Class> allClass = config.getAllClasses();
-            if(null == allClass || allClass.size() == 0){
-                if(null == config.getClassFlag() || null == config.getClassPackageName()){
+            if (null == allClass || allClass.size() == 0) {
+                if (null == config.getClassFlag() || null == config.getClassPackageName()) {
                     Log.e(TAG, "loadHandler > process fail : ILoadCallback is invalid");
                     return;
                 }
                 allClass = HandlerClassFinder.getAllClassesByMultiDex(mContext,
                         config.getClassPackageName(),
                         config.getClassFlag());
-                if(allClass.size() == 0){
+                if (allClass.size() == 0) {
                     Log.e(TAG, "loadHandler > process fail : can't find class");
                     return;
                 }
@@ -142,24 +147,44 @@ public class AssistHandlerManager implements IHandlerFinder<BasicAssistHandler,C
         return mHandlerList;
     }
 
-    public List<Integer> getEventDispatchList() {
+    @Override
+    public boolean dispatchEvent(RemoteEvent event) {
+        if (!isReady) {
+            return false;
+        }
+        boolean result = false;
+        for (BasicAssistHandler handler : getHandlerList()) {
+            if (0 == handler.getHandleRegisterEventCodeList().size()
+                    || -1 == handler.getHandleRegisterEventCodeList().indexOf(event.getCode())) {
+                continue;
+            }
+            if (handler.onReceiveEventNotice(event)) {
+                return true;
+            }
+            result = true;
+        }
+        return result;
+    }
+
+    @Override
+    public List<Integer> getEventReceiveList() {
         if (0 == mAllHandleRemoteEventCode.size()) {
             return null;
         }
         return mAllHandleRemoteEventCode;
     }
 
-    public boolean dispatchReceiveEventNotice(RemoteEvent event) {
-        boolean result = false;
-        for (BasicAssistHandler handler :getHandlerList()){
-            if(0 == handler.getHandleRegisterEventCodeList().size()
-                    || -1 == handler.getHandleRegisterEventCodeList().indexOf(event.getCode())){
-                continue;
-            }
-            handler.onReceiveEventNotice(event);
-            result = true;
+    @Override
+    public IEventBusDispatchCallback getEventDispatchCallback() {
+        return AssistHandlerManager.this;
+    }
+
+    @Override
+    public void onEventDispatchServiceConnectChange(boolean isConnect) {
+        isReady = isConnect;
+        for (BasicAssistHandler handler : getHandlerList()) {
+            handler.setReady(isConnect);
         }
-        return result;
     }
 
     public static interface ILoadCallback {
@@ -173,8 +198,8 @@ public class AssistHandlerManager implements IHandlerFinder<BasicAssistHandler,C
 
         public void onRegisterHandler(BasicAssistHandler handler);
     }
-    
-    public static abstract class LoadCallback implements ILoadCallback{
+
+    public static abstract class LoadCallback implements ILoadCallback {
 
         @Override
         public String getClassPackageName() {
@@ -186,13 +211,13 @@ public class AssistHandlerManager implements IHandlerFinder<BasicAssistHandler,C
             return null;
         }
 
-        public List<Class> getAllClasses(){
+        public List<Class> getAllClasses() {
             return null;
         }
 
         @Override
         public void onRegisterHandler(BasicAssistHandler handler) {
-            
+
         }
     }
 }

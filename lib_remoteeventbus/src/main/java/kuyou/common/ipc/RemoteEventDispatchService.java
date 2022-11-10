@@ -53,7 +53,6 @@ public class RemoteEventDispatchService extends Service {
         @Override
         public void sendEvent(Bundle data) throws RemoteException {
             if (data == null) {
-                Log.e(TAG, "sendEvent > process fail : data is null");
                 return;
             }
             if (null == mCallbackList) {
@@ -64,11 +63,14 @@ public class RemoteEventDispatchService extends Service {
             //Log.d(TAG, "registerCallback > sendEvent = " + RemoteEvent.getCodeByData(data));
             int N = beginBroadcastCallback(mCallbackList);
             for (int i = 0; i < N; i++) {
+                IRemoteServiceCallBack callBack = null;
                 try {
-                    mCallbackList.getBroadcastItem(i).onReceiveEvent(data);
+                    callBack = mCallbackList.getBroadcastItem(i);
+                    callBack.onReceiveEvent(data);
                 } catch (Exception e) {
                     Log.e(TAG, new StringBuilder("sendEvent > process fail : ")
-                            .append("event = ").append(RemoteEvent.getCodeByData(data))
+                            .append("eventCode = ").append(RemoteEvent.getCodeByData(data))
+                            .append("\n modulePackageName = ").append(mModuleCallbackList.get(callBack))
                             //.append("\n").append(Log.getStackTraceString(e))
                             .toString());
                 }
@@ -90,15 +92,17 @@ public class RemoteEventDispatchService extends Service {
             mCallbackList.register(cb);
             mModuleCallbackList.put(cb, packageName);
             mRegisterModuleList.add(packageName);
-            if (!RemoteEventDispatchService.this.getApplicationContext().getPackageName().equals(packageName))
+            if (!RemoteEventDispatchService.this.getApplicationContext().getPackageName().equals(packageName)) {
                 mRegisterClientList.add(packageName);
+            }
 
             RemoteEventBus.getInstance().post(new EventFrame() {
                 @Override
                 public int getCode() {
                     return IRemoteConfig.Code.REF_CLIENT_REGISTER_SUCCESS;
                 }
-            }.setRegisterClientList(mRegisterModuleList)
+            }.setTag(packageName)
+                    .setRegisterClientList(mRegisterModuleList)
                     .setPolicyDispatch2Myself(true)
                     .setRemote(true));
         }

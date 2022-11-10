@@ -20,6 +20,7 @@ public abstract class RemoteEvent {
 
     protected final static String KEY_EVENT_CODE = "keyEventData.code";
     protected final static String KEY_EVENT_START_PACKAGE_NAME = "keyEventData.packageName";
+    protected final static String KEY_START_PROCESS_ID = "keyEventData.processId";
 
     public static final String KEY_INFO = "keyEventData.info";
     public static final String KEY_INFO_LIST = "keyEventData.infoList";
@@ -88,6 +89,16 @@ public abstract class RemoteEvent {
         return RemoteEvent.this;
     }
 
+    public RemoteEvent setStartPackageName(String val) {
+        getData().putString(KEY_EVENT_START_PACKAGE_NAME, val);
+        return RemoteEvent.this;
+    }
+
+    public RemoteEvent setStartProcessID(long val) {
+        getData().putLong(KEY_START_PROCESS_ID, val);
+        return RemoteEvent.this;
+    }
+
     protected void applyCode() {
         getData().putInt(KEY_EVENT_CODE, getCode());
     }
@@ -106,6 +117,14 @@ public abstract class RemoteEvent {
 
     public static String getStartPackageNameByData(Bundle data) {
         return data.getString(KEY_EVENT_START_PACKAGE_NAME);
+    }
+
+    public static long getStartProcessId(RemoteEvent event) {
+        return getStartProcessId(event.getData());
+    }
+
+    public static long getStartProcessId(Bundle data) {
+        return data.getLong(KEY_START_PROCESS_ID);
     }
 
     public RemoteEvent setInfo(Parcelable val) {
