@@ -1,0 +1,118 @@
+plugins {
+    id 'com.android.application'
+}
+
+//added by wgx 配套配置信息
+ext {
+    //模块名称
+    moduleName = "sdk_demo"
+    //模块名称
+    clientName = "normal"
+    //模块包名
+    modulePackageName = "com.kuyou.ssm.demo"
+    //混淆
+    isConfuse = false
+}
+android {
+
+
+    signingConfigs {
+        release {
+            storeFile file("${rootProject.ext.KeyStoreFllePath}")
+            storePassword KeyStorePassword
+            keyAlias KeyAlias
+            keyPassword KeyPassword
+            v1SigningEnabled true
+            v2SigningEnabled true
+        }
+    }
+
+    compileSdkVersion 30
+    buildToolsVersion "30.0.3"
+
+    defaultConfig {
+        applicationId "${project.modulePackageName}"
+
+        minSdkVersion 22
+        targetSdkVersion 30
+        versionCode 1
+        versionName "${versionNumberCustom()}"
+    }
+
+    buildTypes {
+        release {
+            if (project.isConfuse) {
+                zipAlignEnabled project.isConfuse
+                minifyEnabled project.isConfuse
+                shrinkResources project.isConfuse
+            }else{
+                minifyEnabled false
+            }
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+            signingConfig signingConfigs.release //加入签名配置
+        }
+    }
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_1_8
+        targetCompatibility JavaVersion.VERSION_1_8
+    }
+    android.applicationVariants.all { variant ->
+        variant.outputs.all {
+            outputFileName = "${variant.versionName}.apk"
+        }
+    }
+}
+
+dependencies {
+    implementation files('libs/eventbus-3.1.1.jar')
+    implementation fileTree(include: ['KuYou_Normal_U_common_release*.aar'], dir: 'libs')
+    implementation fileTree(include: ['KuYou_Normal_m_ssm_sdk_*.aar'], dir: 'libs')
+
+    //implementation 'com.github.KuYouDev:KU_Common:1.0'
+    implementation 'com.github.kuyoudev:ku_remoteeventbus:1.3'
+    //implementation project(path: ':lib_remoteeventbus')
+
+    implementation 'com.google.android.material:material:1.2.1'
+    implementation 'androidx.appcompat:appcompat:1.2.0'
+}
+
+configurations {
+    all*.exclude group: 'org.greenrobot.eventbus.AsyncPoster'
+}
+
+def versionNumberCustom() {
+    def buildType = "debug"
+    if (isReleaseBuildType()) {
+        buildType = "release"
+    }
+
+    return "${rootProject.ext.projectMainAuthorName}_${rootProject.ext.projectClientName}_${rootProject.ext.projectHardwareName}_${project.moduleName}_${buildType}_${rootProject.ext.versionDate}";
+}
+
+boolean isReleaseBuildType() {
+    for (String s : gradle.startParameter.taskNames) {
+        if (s.contains("Release") | s.contains("release")) {
+            return true
+        }
+    }
+    return false
+}
+
+task releaseBuild_SdkDemo(type: Exec) {
+    setGroup('kuyou')
+    setDescription('task study')
+
+    dependsOn 'assembleRelease'
+
+    workingDir '.'
+    commandLine '/bin/ls'
+    standardOutput = new ByteArrayOutputStream()
+}
+
+task releaseBuildRun_SdkDemo(type: Exec) {
+    setGroup('kuyou')
+    setDescription('task study')
+
+    dependsOn 'installRelease'
+    commandLine  "adb","shell","am","start","-n","${project.modulePackageName}/.MainActivity"
+}
