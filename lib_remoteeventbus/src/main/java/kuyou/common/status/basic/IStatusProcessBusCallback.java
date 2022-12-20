@@ -2,7 +2,7 @@ package kuyou.common.status.basic;
 
 import android.os.Looper;
 
-public interface IStatusProcessBusCallback {
+public interface IStatusProcessBusCallback <Impl> {
 
     /**
      * action:设定状态通知处理线程,使用主线程
@@ -55,4 +55,14 @@ public interface IStatusProcessBusCallback {
      * @return 为true表示接收
      */
     public int getStatusProcessFlag();
+
+    /**
+     * action:设定状态ID
+     */
+    public Impl setStatusCode(int statusCode);
+
+    /**
+     * action:获取状态ID
+     */
+    public int getStatusCode();
 }

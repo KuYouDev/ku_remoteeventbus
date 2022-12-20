@@ -5,6 +5,8 @@ import android.os.Bundle;
 public interface IStatusProcessBus {
     public void registerStatusNoticeCallback(int statusCode, IStatusProcessBusCallback callback);
 
+    public void unRegisterStatus(int statusCode);
+
     public int registerStatusNoticeCallback(final IStatusProcessBusCallback callback);
 
     public void start(int processFlag);

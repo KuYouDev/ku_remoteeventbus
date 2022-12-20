@@ -22,6 +22,7 @@ public abstract class StatusProcessBusImpl implements IStatusProcessBus {
     private IStatusProcessBus mStatusProcessBusFrame;
     private Map<Integer, Integer> mStatusProcessBusProxyStatusCodeList;
     private Map<Integer, Integer> mStatusProcessBusProxyFlagList;
+    private Object mLock = new Object();
 
     public StatusProcessBusImpl() {
         mStatusProcessBusFrame = StatusProcessBusFrame.getInstance();
@@ -33,28 +34,51 @@ public abstract class StatusProcessBusImpl implements IStatusProcessBus {
 
     @Override
     public void registerStatusNoticeCallback(int statusCode, IStatusProcessBusCallback callback) {
-        if (mStatusProcessBusProxyStatusCodeList.containsKey(Integer.valueOf(statusCode))) {
-            Log.w(TAG, "registerStatusNoticeCallback > process fail : statusCode is registered");
-            return;
-        }
-        //Log.d(TAG, "registerStatusNoticeCallback > statusCode = " + statusCode);
-        StatusProcessBusCallbackImpl callbackProxy = new StatusProcessBusCallbackImpl(callback) {
-            @Override
-            public void onReceiveProcessStatusNotice(boolean isRemove) {
-                StatusProcessBusImpl.this.onReceiveProcessStatusNotice(
-                        mStatusProcessBusProxyFlagList.get(Integer.valueOf(getStatusProcessFlag())), isRemove);
+        synchronized (mLock) {
+            if (mStatusProcessBusProxyStatusCodeList.containsKey(Integer.valueOf(statusCode))) {
+                Log.w(TAG, "registerStatusNoticeCallback > process fail : statusCode is registered");
+                return;
             }
-        };
-        final int flag = mStatusProcessBusFrame.registerStatusNoticeCallback(callbackProxy);
-        callbackProxy.setStatusProcessFlag(flag);
+            //Log.d(TAG, "registerStatusNoticeCallback > statusCode = " + statusCode);
+            StatusProcessBusCallbackImpl callbackProxy = new StatusProcessBusCallbackImpl(callback) {
+                @Override
+                public void onReceiveProcessStatusNotice(boolean isRemove) {
+                    StatusProcessBusImpl.this.onReceiveProcessStatusNotice(
+                            mStatusProcessBusProxyFlagList.get(Integer.valueOf(getStatusProcessFlag())), isRemove);
+                }
+            };
+            //PSB内部真实的statusCode
+            final int processFlag = mStatusProcessBusFrame.registerStatusNoticeCallback(callbackProxy);
+            callbackProxy.setStatusProcessFlag(processFlag);
 
-        mStatusProcessBusProxyStatusCodeList.put(statusCode, flag);
-        mStatusProcessBusProxyFlagList.put(flag, statusCode);
+            mStatusProcessBusProxyStatusCodeList.put(statusCode, processFlag);
+            mStatusProcessBusProxyFlagList.put(processFlag, statusCode);
+        }
+    }
+
+    @Override
+    public void unRegisterStatus(int statusCode) {
+        synchronized (mLock) {
+            if (!mStatusProcessBusProxyStatusCodeList.containsKey(Integer.valueOf(statusCode))) {
+                return;
+            }
+            //PSB内部真实的statusCode
+            final int processFlag = mStatusProcessBusProxyStatusCodeList.get(statusCode);
+            mStatusProcessBusProxyStatusCodeList.remove(statusCode);
+            mStatusProcessBusProxyFlagList.remove(processFlag);
+            mStatusProcessBusFrame.unRegisterStatus(processFlag);
+        }
     }
 
     @Override
     public int registerStatusNoticeCallback(IStatusProcessBusCallback callback) {
-        throw new RuntimeException("this api is disable");
+        final int statusCode = callback.getStatusCode();
+        if (-1 == statusCode) {
+            Log.e(TAG, "registerStatusNoticeCallback > process fail : statusCode is invalid");
+            return -1;
+        }
+        registerStatusNoticeCallback(statusCode, callback);
+        return 0;
     }
 
     @Override

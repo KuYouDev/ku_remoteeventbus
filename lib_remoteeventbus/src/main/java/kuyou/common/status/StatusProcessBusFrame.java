@@ -89,6 +89,14 @@ public class StatusProcessBusFrame extends Handler implements IStatusProcessBus 
     }
 
     @Override
+    public void unRegisterStatus(int processFlag) {
+        stop(processFlag);
+        mStatusProcessBusCallbackList.remove(processFlag);
+        mStatusProcessBusCallbackRunnableList.remove(processFlag);
+        mStatusProcessBusCallbackHandlerList.remove(processFlag);
+    }
+
+    @Override
     public int registerStatusNoticeCallback(final IStatusProcessBusCallback callback) {
         final int looperPolicy = callback.getNoticeHandleLooperPolicy();
         Looper looper = null;

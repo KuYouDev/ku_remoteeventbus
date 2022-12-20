@@ -5,7 +5,7 @@ import android.util.Log;
 
 import kuyou.common.status.basic.IStatusProcessBusCallback;
 
-public class StatusProcessBusCallbackImpl implements IStatusProcessBusCallback {
+public class StatusProcessBusCallbackImpl implements IStatusProcessBusCallback<StatusProcessBusCallbackImpl> {
     protected static final String TAG = "kuyou.common.status > StatusProcessBusCallbackImpl ";
 
     private int mStatusProcessFlag = -1;
@@ -15,6 +15,7 @@ public class StatusProcessBusCallbackImpl implements IStatusProcessBusCallback {
 
     private Looper mNoticeHandleLooper = null;
     private int mNoticeHandleLooperPolicy = -1;
+    private int mStatusCode = -1;
 
     public StatusProcessBusCallbackImpl() {
     }
@@ -82,6 +83,17 @@ public class StatusProcessBusCallbackImpl implements IStatusProcessBusCallback {
     @Override
     public int getStatusProcessFlag() {
         return mStatusProcessFlag;
+    }
+
+    @Override
+    public StatusProcessBusCallbackImpl setStatusCode(int statusCode) {
+        mStatusCode = statusCode;
+        return StatusProcessBusCallbackImpl.this;
+    }
+
+    @Override
+    public int getStatusCode() {
+        return mStatusCode;
     }
 
     public StatusProcessBusCallbackImpl setStatusProcessFlag(int statusProcessFlag) {
