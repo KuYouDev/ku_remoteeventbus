@@ -1,8 +1,10 @@
 package kuyou.common.ipc;
 
+import android.content.BroadcastReceiver;
 import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.content.ServiceConnection;
 import android.os.Bundle;
 import android.os.IBinder;
@@ -293,6 +295,7 @@ public class RemoteEventBus implements IRemoteConfig {
                     Log.e(RemoteEventBus.this.mTagLog, Log.getStackTraceString(e));
                     onServiceDisconnected(null);
                 }
+                RemoteEventBus.this.registerAutoReConnect();
             }
 
             public void onServiceDisconnected(ComponentName className) {
@@ -308,7 +311,42 @@ public class RemoteEventBus implements IRemoteConfig {
         Intent intent = new Intent();
         intent.setPackage(getIpcFlag());
         intent.setAction("kuyou.common.ipc");
+        intent.setComponent(new ComponentName(getIpcFlag(), "kuyou.common.ipc.RemoteEventDispatchService"));
         context.bindService(intent, mEventDispatchServiceConnection, Context.BIND_AUTO_CREATE);
+    }
+
+    private void registerAutoReConnect(){
+        if(null != mBroadcastReceiverAutoReConnect){
+            return;
+        }
+        if(null == getIpcFlag()){
+            //Log.d(mTagLog, "registerAutoReConnect > cancel option , getIpcFlag is null");
+            return;
+        }
+        if(getIpcFlag().equals(getRegisterConfig().getContext().getPackageName())){
+            //Log.d(mTagLog, "registerAutoReConnect > cancel option");
+            return;
+        }
+        //Log.d(mTagLog, "registerAutoReConnect > option ");
+        mBroadcastReceiverAutoReConnect= new BroadcastReceiver() {
+            @Override
+            public void onReceive(Context context, Intent intent) {
+                final String action = intent.getAction();
+                if(null!=action && action.equals(ACTION_IPC_BOOT)){
+                    if(null != RemoteEventBus.this.mEventDispatchService){
+                        //Log.d(mTagLog, "registerAutoReConnect > onReceive > cancel start reconnect ipc");
+                        return;
+                    }
+                    Log.i(mTagLog, "registerAutoReConnect > onReceive > start reconnect ipc");
+                   RemoteEventBus.this.getStatusProcessBus().start(PS_BIND_FRAME_SERVICE);
+                }
+            }
+        };
+        try{
+            getRegisterConfig().getContext().registerReceiver(mBroadcastReceiverAutoReConnect,new IntentFilter(ACTION_IPC_BOOT));
+        }catch(Exception e){
+            Log.e(mTagLog, Log.getStackTraceString(e));
+        }
     }
 
     public static interface IRemoteBinderConfig {

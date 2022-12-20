@@ -146,9 +146,21 @@ public class RemoteEventDispatchService extends Service {
         return N;
     }
 
-
     @Override
     public IBinder onBind(Intent intent) {
         return mBinder;
+    }
+
+    @Override
+    public void onCreate() {
+        super.onCreate();
+        dispatchIpcServerBootNotice();
+    }
+
+    private void dispatchIpcServerBootNotice(){
+        Log.d(TAG, "dispatchIpcServerBootNotice > registerAutoReConnect");
+        Intent notice = new Intent(RemoteEventBus.ACTION_IPC_BOOT);
+        notice.addFlags(Intent.FLAG_RECEIVER_FOREGROUND);
+        sendBroadcast(notice);
     }
 }
