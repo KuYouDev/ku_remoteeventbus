@@ -57,6 +57,8 @@ public class RemoteEventBus implements IRemoteConfig {
         return sInstance;
     }
 
+    //服务端重启启动后，通知客户端连接
+    public static final String ACTION_IPC_BOOT = "action.kuyou.ipc.boot";
     protected final String IPC_FRAME_PACKAGE_NAME_NORMAL = "com.kuyou.ipc";
     protected final static int PS_NOTICE_IPC_PROCESS_AWAKEN = 0;
     protected final static int PS_BIND_FRAME_SERVICE = 1;
@@ -71,6 +73,7 @@ public class RemoteEventBus implements IRemoteConfig {
     private IRemoteService mEventDispatchService = null;
     private ServiceConnection mEventDispatchServiceConnection = null;
     private List<ILiveListener> mLiveListenerList = new ArrayList<>();
+    private BroadcastReceiver mBroadcastReceiverAutoReConnect;
 
     public boolean register(Object instance, Integer... event_codes) {
         if (null == instance) {
@@ -191,8 +194,8 @@ public class RemoteEventBus implements IRemoteConfig {
         }
         mStatusProcessBus = new StatusProcessBusImpl() {
             @Override
-            protected void onReceiveProcessStatusNotice(int statusCode, boolean isRemove) {
-                RemoteEventBus.this.onReceiveProcessStatusNotice(statusCode, isRemove);
+            protected void onReceiveProcessStatusNotice(int statusCode,Bundle data, boolean isRemove) {
+                RemoteEventBus.this.onReceiveProcessStatusNotice(statusCode,data, isRemove);
             }
         };
         initReceiveProcessStatusNotices();
@@ -212,7 +215,7 @@ public class RemoteEventBus implements IRemoteConfig {
                         .setNoticeHandleLooperPolicy(IStatusProcessBusCallback.LOOPER_POLICY_BACKGROUND));
     }
 
-    protected void onReceiveProcessStatusNotice(int statusCode, boolean isRemove) {
+    protected void onReceiveProcessStatusNotice(int statusCode,Bundle data, boolean isRemove) {
         switch (statusCode) {
             case PS_NOTICE_IPC_PROCESS_AWAKEN:
                 Log.w(mTagLog, "onReceiveProcessStatusNotice:PS_NOTICE_IPC_PROCESS_AWAKEN");

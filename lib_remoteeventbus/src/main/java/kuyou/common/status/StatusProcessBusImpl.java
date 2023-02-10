@@ -22,15 +22,18 @@ public abstract class StatusProcessBusImpl implements IStatusProcessBus {
     private IStatusProcessBus mStatusProcessBusFrame;
     private Map<Integer, Integer> mStatusProcessBusProxyStatusCodeList;
     private Map<Integer, Integer> mStatusProcessBusProxyFlagList;
+    private Map<Integer, IStatusProcessBusCallback> mStatusProcessBusCallbackList;
     private Object mLock = new Object();
 
     public StatusProcessBusImpl() {
         mStatusProcessBusFrame = StatusProcessBusFrame.getInstance();
-        mStatusProcessBusProxyStatusCodeList = new HashMap<Integer, Integer>();
-        mStatusProcessBusProxyFlagList = new HashMap<Integer, Integer>();
+        mStatusProcessBusProxyStatusCodeList = new HashMap<>();
+        mStatusProcessBusProxyFlagList = new HashMap<>();
+        mStatusProcessBusCallbackList = new HashMap<>();
     }
 
-    protected abstract void onReceiveProcessStatusNotice(int statusCode, boolean isRemove);
+    //callback 主要为了传递数据
+    protected abstract void onReceiveProcessStatusNotice(int statusCode,Bundle data, boolean isRemove);
 
     @Override
     public void registerStatusNoticeCallback(int statusCode, IStatusProcessBusCallback callback) {
@@ -43,8 +46,11 @@ public abstract class StatusProcessBusImpl implements IStatusProcessBus {
             StatusProcessBusCallbackImpl callbackProxy = new StatusProcessBusCallbackImpl(callback) {
                 @Override
                 public void onReceiveProcessStatusNotice(boolean isRemove) {
+                    
                     StatusProcessBusImpl.this.onReceiveProcessStatusNotice(
-                            mStatusProcessBusProxyFlagList.get(Integer.valueOf(getStatusProcessFlag())), isRemove);
+                            mStatusProcessBusProxyFlagList.get(Integer.valueOf(getStatusProcessFlag())),
+                            mStatusProcessBusCallbackList.get(Integer.valueOf(getStatusProcessFlag())).getData(true), 
+                            isRemove);
                 }
             };
             //PSB内部真实的statusCode
@@ -53,18 +59,20 @@ public abstract class StatusProcessBusImpl implements IStatusProcessBus {
 
             mStatusProcessBusProxyStatusCodeList.put(statusCode, processFlag);
             mStatusProcessBusProxyFlagList.put(processFlag, statusCode);
+            mStatusProcessBusCallbackList.put(processFlag, callback);
         }
     }
 
     @Override
     public void unRegisterStatus(int statusCode) {
         synchronized (mLock) {
-            if (!mStatusProcessBusProxyStatusCodeList.containsKey(Integer.valueOf(statusCode))) {
+            final int flag = Integer.valueOf(statusCode);
+            if (!mStatusProcessBusProxyStatusCodeList.containsKey(flag)) {
                 return;
             }
             //PSB内部真实的statusCode
-            final int processFlag = mStatusProcessBusProxyStatusCodeList.get(statusCode);
-            mStatusProcessBusProxyStatusCodeList.remove(statusCode);
+            Integer processFlag = mStatusProcessBusProxyStatusCodeList.get(flag);
+            mStatusProcessBusProxyStatusCodeList.remove(flag);
             mStatusProcessBusProxyFlagList.remove(processFlag);
             mStatusProcessBusFrame.unRegisterStatus(processFlag);
         }
@@ -83,55 +91,73 @@ public abstract class StatusProcessBusImpl implements IStatusProcessBus {
 
     @Override
     public void start(int statusCode) {
-        if (!mStatusProcessBusProxyStatusCodeList.containsKey(Integer.valueOf(statusCode))) {
+        final Integer flag = Integer.valueOf(statusCode);
+        if (!mStatusProcessBusProxyStatusCodeList.containsKey(flag)) {
             Log.w(TAG, "start > process fail : statusCode is not registered = " + statusCode);
             return;
         }
         //Log.d(TAG, "start > statusCode = " + statusCode);
         mStatusProcessBusFrame
-                .start(mStatusProcessBusProxyStatusCodeList.get(Integer.valueOf(statusCode)));
+                .start(mStatusProcessBusProxyStatusCodeList.get(flag));
+    }
+
+    @Override
+    public void start(int statusCode, Bundle data) {
+        final Integer flag = Integer.valueOf(statusCode);
+        if (!mStatusProcessBusProxyStatusCodeList.containsKey(flag)) {
+            Log.w(TAG, "start > process fail : statusCode is not registered = " + statusCode);
+            return;
+        }
+        mStatusProcessBusCallbackList.get(mStatusProcessBusProxyStatusCodeList.get(flag)).setData(data);
+        mStatusProcessBusFrame.start(mStatusProcessBusProxyStatusCodeList.get(flag),data);
     }
 
     @Override
     public void start(int statusCode, long delayed) {
-        if (!mStatusProcessBusProxyStatusCodeList.containsKey(Integer.valueOf(statusCode))) {
+        final Integer flag = Integer.valueOf(statusCode);
+        if (!mStatusProcessBusProxyStatusCodeList.containsKey(flag)) {
             Log.w(TAG, "start > process fail : statusCode is not registered = " + statusCode);
             return;
         }
         //Log.d(TAG, "start > statusCode = " + statusCode);
         mStatusProcessBusFrame
-                .start(mStatusProcessBusProxyStatusCodeList.get(Integer.valueOf(statusCode)), delayed);
+                .start(mStatusProcessBusProxyStatusCodeList.get(flag), delayed);
     }
 
     @Override
     public void start(int statusCode, long delayed, Bundle data) {
-        if (!mStatusProcessBusProxyStatusCodeList.containsKey(Integer.valueOf(statusCode))) {
+        final Integer flag = Integer.valueOf(statusCode);
+        if (!mStatusProcessBusProxyStatusCodeList.containsKey(flag)) {
             Log.w(TAG, "start > process fail : statusCode is not registered = " + statusCode);
             return;
         }
         //Log.d(TAG, "start > statusCode = " + statusCode);
+        mStatusProcessBusCallbackList.get(mStatusProcessBusProxyStatusCodeList.get(flag)).setData(data);
         mStatusProcessBusFrame
-                .start(mStatusProcessBusProxyStatusCodeList.get(Integer.valueOf(statusCode)), delayed, data);
+                .start(mStatusProcessBusProxyStatusCodeList.get(flag), delayed, data);
     }
 
     @Override
     public void stop(int statusCode) {
-        if (!mStatusProcessBusProxyStatusCodeList.containsKey(Integer.valueOf(statusCode))) {
+        final Integer flag = Integer.valueOf(statusCode);
+        if (!mStatusProcessBusProxyStatusCodeList.containsKey(flag)) {
             Log.w(TAG, "stop > process fail : statusCode is not registered = " + statusCode);
             return;
         }
+        mStatusProcessBusCallbackList.get(mStatusProcessBusProxyStatusCodeList.get(flag)).getData(true);
         //Log.d(TAG, "stop > statusCode = " + statusCode);
         mStatusProcessBusFrame
-                .stop(mStatusProcessBusProxyStatusCodeList.get(Integer.valueOf(statusCode)));
+                .stop(mStatusProcessBusProxyStatusCodeList.get(flag));
     }
 
     @Override
     public boolean isStart(int statusCode) {
-        if (!mStatusProcessBusProxyStatusCodeList.containsKey(Integer.valueOf(statusCode))) {
+        final Integer flag = Integer.valueOf(statusCode);
+        if (!mStatusProcessBusProxyStatusCodeList.containsKey(flag)) {
             Log.w(TAG, "isStart > process fail : statusCode is not registered = " + statusCode);
             return false;
         }
         return mStatusProcessBusFrame
-                .isStart(mStatusProcessBusProxyStatusCodeList.get(Integer.valueOf(statusCode)));
+                .isStart(mStatusProcessBusProxyStatusCodeList.get(flag));
     }
 }

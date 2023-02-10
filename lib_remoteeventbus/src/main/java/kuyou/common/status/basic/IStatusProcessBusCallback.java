@@ -1,6 +1,9 @@
 package kuyou.common.status.basic;
 
+import android.os.Bundle;
 import android.os.Looper;
+
+import kuyou.common.status.StatusProcessBusCallbackImpl;
 
 public interface IStatusProcessBusCallback <Impl> {
 
@@ -13,6 +16,11 @@ public interface IStatusProcessBusCallback <Impl> {
      * action:设定状态通知处理线程,使用后台线程
      */
     public final static int LOOPER_POLICY_BACKGROUND = 1;
+
+    /**
+     * action:设定状态通知处理线程,使用线程池
+     */
+    public final static int LOOPER_POLICY_POOL = 2;
 
     /**
      * action:收到状态通知 <br/>
@@ -65,4 +73,18 @@ public interface IStatusProcessBusCallback <Impl> {
      * action:获取状态ID
      */
     public int getStatusCode();
+
+    /**
+     * action:设定线程ID
+     */
+    public Impl setThreadCode(int val);
+
+    /**
+     * action:获取线程ID
+     */
+    public int getThreadCode();
+
+    public Bundle getData(boolean isClean);
+
+    public Impl setData(Bundle val);
 }

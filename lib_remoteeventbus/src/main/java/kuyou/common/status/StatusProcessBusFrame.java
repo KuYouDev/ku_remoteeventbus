@@ -46,9 +46,7 @@ public class StatusProcessBusFrame extends Handler implements IStatusProcessBus 
     }
 
     private int mProcessFlag = 0;
-
     private Looper mLooper;
-
     protected Map<Integer, IStatusProcessBusCallback> mStatusProcessBusCallbackList = new HashMap<Integer, IStatusProcessBusCallback>();
     protected Map<Integer, Handler> mStatusProcessBusCallbackHandlerList = new HashMap<Integer, Handler>();
     protected Map<Integer, Runnable> mStatusProcessBusCallbackRunnableList = new HashMap<Integer, Runnable>();
@@ -65,6 +63,27 @@ public class StatusProcessBusFrame extends Handler implements IStatusProcessBus 
             mLooper = handlerThreadBackgroundHandle.getLooper();
         }
         return mLooper;
+    }
+
+    protected final static int LOOPER_POOL_MAX_SIZE = 10;
+    protected Map<Integer, Looper> mLooperThreadPool = new HashMap<Integer, Looper>();
+
+    protected Looper getHandleLooperByCode(int threadCode) {
+        final Integer flag = Integer.valueOf(threadCode);
+        if (mLooperThreadPool.containsKey(flag)) {
+            return mLooperThreadPool.get(flag);
+        }
+        if (mLooperThreadPool.size() >= LOOPER_POOL_MAX_SIZE) {
+            Log.w(TAG, "getHandleLooperByCode > process fail : mLooperThreadPool is full");
+            return mLooperThreadPool.get(Integer.valueOf((int) mLooperThreadPool.keySet().toArray()[mLooperThreadPool.size() - 1]));
+        }
+        final String threadId = ".HandlerThreadPool." + threadCode;
+        Log.d(TAG, "getHandleLooperByCode > threadId = "+threadId);
+        HandlerThread handlerThreadBackgroundHandle = new HandlerThread(threadId);
+        handlerThreadBackgroundHandle.start();
+        Looper looper = handlerThreadBackgroundHandle.getLooper();
+        mLooperThreadPool.put(flag, looper);
+        return looper;
     }
 
     @Override
@@ -107,6 +126,9 @@ public class StatusProcessBusFrame extends Handler implements IStatusProcessBus 
             case IStatusProcessBusCallback.LOOPER_POLICY_MAIN:
                 looper = Looper.getMainLooper();
                 break;
+            case IStatusProcessBusCallback.LOOPER_POLICY_POOL:
+                looper = getHandleLooperByCode(callback.getThreadCode());
+                break;
             default:
                 looper = callback.getNoticeHandleLooper();
                 break;
@@ -140,6 +162,11 @@ public class StatusProcessBusFrame extends Handler implements IStatusProcessBus 
             return;
         }
         sendEmptyMessage(processFlag);
+    }
+
+    @Override
+    public void start(int msgCode, Bundle data) {
+        start(msgCode, 0L, data);
     }
 
     @Override

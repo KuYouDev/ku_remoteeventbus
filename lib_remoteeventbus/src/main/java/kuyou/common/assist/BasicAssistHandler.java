@@ -1,6 +1,7 @@
 package kuyou.common.assist;
 
 import android.content.Context;
+import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
 import android.util.Log;
@@ -17,6 +18,7 @@ import kuyou.common.ipc.basic.IEventBusDispatchCallback;
 import kuyou.common.ipc.event.RemoteEvent;
 import kuyou.common.status.StatusProcessBusImpl;
 import kuyou.common.status.basic.IStatusProcessBus;
+import kuyou.common.status.basic.IStatusProcessBusCallback;
 
 /**
  * action :业务处理器[抽象]
@@ -126,15 +128,20 @@ public abstract class BasicAssistHandler implements IAssistHandler, RemoteEventB
             return;
         }
         mStatusProcessBus = new StatusProcessBusImpl() {
+            //callback 主要为获取数据
             @Override
-            protected void onReceiveProcessStatusNotice(int statusCode, boolean isRemove) {
-                BasicAssistHandler.this.onReceiveProcessStatusNotice(statusCode, isRemove);
+            protected void onReceiveProcessStatusNotice(int statusCode, Bundle data, boolean isRemove) {
+                BasicAssistHandler.this.onReceiveProcessStatusNotice(statusCode, data, isRemove);
             }
         };
         //initReceiveProcessStatusNotices();
     }
 
     protected void initReceiveProcessStatusNotices() {
+    }
+
+    protected void onReceiveProcessStatusNotice(int statusCode, Bundle data, boolean isRemove) {
+        onReceiveProcessStatusNotice(statusCode,isRemove);
     }
 
     protected void onReceiveProcessStatusNotice(int statusCode, boolean isRemove) {

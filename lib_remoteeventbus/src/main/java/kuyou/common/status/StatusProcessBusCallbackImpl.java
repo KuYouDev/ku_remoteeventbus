@@ -1,5 +1,6 @@
 package kuyou.common.status;
 
+import android.os.Bundle;
 import android.os.Looper;
 import android.util.Log;
 
@@ -14,8 +15,10 @@ public class StatusProcessBusCallbackImpl implements IStatusProcessBusCallback<S
     private long mNoticeReceiveFreq = 0;
 
     private Looper mNoticeHandleLooper = null;
+    private Bundle[] mDataCache = new Bundle[1];
     private int mNoticeHandleLooperPolicy = -1;
     private int mStatusCode = -1;
+    private int mThreadCode = -1;
 
     public StatusProcessBusCallbackImpl() {
     }
@@ -33,11 +36,12 @@ public class StatusProcessBusCallbackImpl implements IStatusProcessBusCallback<S
 
     public StatusProcessBusCallbackImpl(IStatusProcessBusCallback callback) {
         isAutoNoticeReceiveCycle = callback.isAutoNoticeReceiveCycle();
+        isEnableReceiveRemoveNotice = callback.isEnableReceiveRemoveNotice();
         mNoticeReceiveFreq = callback.getNoticeReceiveFreq();
         mNoticeHandleLooper = callback.getNoticeHandleLooper();
-        isEnableReceiveRemoveNotice = callback.isEnableReceiveRemoveNotice();
         mNoticeHandleLooperPolicy = callback.getNoticeHandleLooperPolicy();
-        mNoticeHandleLooper = callback.getNoticeHandleLooper();
+        mThreadCode = callback.getThreadCode();
+        mDataCache[0] = callback.getData(false);
     }
 
     public StatusProcessBusCallbackImpl setAutoNoticeReceiveCycle(boolean autoNoticeReceiveCycle) {
@@ -96,6 +100,18 @@ public class StatusProcessBusCallbackImpl implements IStatusProcessBusCallback<S
         return mStatusCode;
     }
 
+    @Override
+    public int getThreadCode() {
+        return mThreadCode;
+    }
+
+    @Override
+    public StatusProcessBusCallbackImpl setThreadCode(int val) {
+       setNoticeHandleLooperPolicy(IStatusProcessBusCallback.LOOPER_POLICY_POOL);
+        mThreadCode = val;
+        return StatusProcessBusCallbackImpl.this;
+    }
+
     public StatusProcessBusCallbackImpl setStatusProcessFlag(int statusProcessFlag) {
         mStatusProcessFlag = statusProcessFlag;
         return StatusProcessBusCallbackImpl.this;
@@ -117,10 +133,27 @@ public class StatusProcessBusCallbackImpl implements IStatusProcessBusCallback<S
     }
 
     public StatusProcessBusCallbackImpl setNoticeHandleLooperPolicy(int policy) {
-        if (LOOPER_POLICY_MAIN != policy && LOOPER_POLICY_BACKGROUND != policy) {
+        if (LOOPER_POLICY_MAIN != policy 
+                && LOOPER_POLICY_BACKGROUND != policy
+                && LOOPER_POLICY_POOL != policy) {
             Log.e(TAG, "setNoticeHandleLooperPolicy > process fail : policy is invalid");
         }
         mNoticeHandleLooperPolicy = policy;
+        return StatusProcessBusCallbackImpl.this;
+    }
+
+    @Override
+    public Bundle getData(boolean isClean) {
+        Bundle data = mDataCache[0];
+        if(isClean){
+            mDataCache[0] = null;
+        }
+        return data;
+    }
+
+    @Override
+    public StatusProcessBusCallbackImpl setData(Bundle val) {
+        mDataCache[0] = val;
         return StatusProcessBusCallbackImpl.this;
     }
 }
