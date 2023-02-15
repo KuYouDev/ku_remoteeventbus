@@ -66,7 +66,7 @@ public abstract class StatusProcessBusImpl implements IStatusProcessBus {
     @Override
     public void unRegisterStatus(int statusCode) {
         synchronized (mLock) {
-            final int flag = Integer.valueOf(statusCode);
+            final Integer flag = Integer.valueOf(statusCode);
             if (!mStatusProcessBusProxyStatusCodeList.containsKey(flag)) {
                 return;
             }

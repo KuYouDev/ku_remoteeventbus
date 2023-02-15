@@ -18,12 +18,11 @@ public abstract class RemoteEvent {
 
     protected final static String TAG = "com.kuyou.ipc > RemoteEvent";
 
+    protected final static String KEY_INFO = "keyEventData.info";
+    protected final static String KEY_INFO_LIST = "keyEventData.infoList";
     protected final static String KEY_EVENT_CODE = "keyEventData.code";
     protected final static String KEY_EVENT_START_PACKAGE_NAME = "keyEventData.packageName";
     protected final static String KEY_START_PROCESS_ID = "keyEventData.processId";
-
-    public static final String KEY_INFO = "keyEventData.info";
-    public static final String KEY_INFO_LIST = "keyEventData.infoList";
 
     protected final static int NONE = -1;
 

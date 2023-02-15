@@ -109,7 +109,7 @@ public class EventDispatcherImpl implements IEventDispatcher<EventDispatcherImpl
         if (-1 == eventCode) {
             return;
         }
-        Log.d(mTagLog, "dispatchEventRemote2Local > eventCode = " + eventCode);
+        //Log.d(mTagLog, "dispatchEventRemote2Local > eventCode = " + eventCode);
         final RemoteEvent event = new RemoteEvent() {
             @Override
             public int getCode() {
@@ -168,7 +168,7 @@ public class EventDispatcherImpl implements IEventDispatcher<EventDispatcherImpl
             throw new NullPointerException("LocalModulePackageName is null,\nplease perform method \"setLocalModulePackageName(String val)\"");
         }
         if (mLocalModulePackageName.equals(RemoteEvent.getStartPackageNameByData(data))) {
-            Log.d(mTagLog, "receiveEventFilterPolicy > give up event start package name = " + mLocalModulePackageName);
+            //Log.d(mTagLog, "receiveEventFilterPolicy > give up event start package name = " + mLocalModulePackageName);
             return -1;
         }
         int eventCode = RemoteEvent.getCodeByData(data);
