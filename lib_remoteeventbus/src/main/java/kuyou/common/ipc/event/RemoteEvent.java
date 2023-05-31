@@ -17,7 +17,6 @@ import java.util.List;
 public abstract class RemoteEvent {
 
     protected final static String TAG = "com.kuyou.ipc > RemoteEvent";
-
     protected final static String KEY_INFO = "keyEventData.info";
     protected final static String KEY_INFO_LIST = "keyEventData.infoList";
     protected final static String KEY_EVENT_CODE = "keyEventData.code";
@@ -32,6 +31,8 @@ public abstract class RemoteEvent {
     private boolean isRemote = false;//标识要发送远端的事件
     private boolean isDispatch2Myself = false;
     private boolean isEnableConsumeSeparately = true;
+    
+    private boolean isSticky = false;
 
     public abstract int getCode();
 
@@ -41,6 +42,16 @@ public abstract class RemoteEvent {
 
     public RemoteEvent setRemote(boolean val) {
         isRemote = val;
+        setSticky(true);
+        return RemoteEvent.this;
+    }
+
+    public boolean isSticky() {
+        return isSticky;
+    }
+
+    public RemoteEvent setSticky(boolean val) {
+        isSticky = val;
         return RemoteEvent.this;
     }
 

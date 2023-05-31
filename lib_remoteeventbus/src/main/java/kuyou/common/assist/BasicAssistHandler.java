@@ -7,6 +7,7 @@ import android.os.Looper;
 import android.util.Log;
 
 import org.greenrobot.eventbus.EventBus;
+import org.greenrobot.eventbus.Subscribe;
 
 import java.util.ArrayList;
 import java.util.LinkedList;
@@ -28,14 +29,14 @@ import kuyou.common.status.basic.IStatusProcessBusCallback;
  * date: 21-7-23 <br/>
  * </p>
  */
-public abstract class BasicAssistHandler implements IAssistHandler, RemoteEventBus.ILiveListener {
+public abstract class BasicAssistHandler implements RemoteEventBus.ILiveListener {
     protected static String TAG = "kuyou.common.ipc.client > BasicAssistHandler";
 
     protected Handler mMainThreadHandler = new Handler(Looper.getMainLooper());
     private final Queue<RemoteEvent> mEventsToBeSendQueue = new LinkedList<>();
 
     private IHandlerFinder<BasicAssistHandler, Class<?>> mHandlerFinder;
-    private IEventBusDispatchCallback mEventSendCallBack, mEventBusReceiveCallBack;
+    private IEventBusDispatchCallback mEventBusReceiveCallBack;
     private List<Integer> mHandleRegisterEventCodeList = new ArrayList<>(),
             mHandleRegisterRemoteEventCodeList = new ArrayList<>();
     private IStatusProcessBus mStatusProcessBus;
@@ -76,7 +77,7 @@ public abstract class BasicAssistHandler implements IAssistHandler, RemoteEventB
     }
 
     public void stop() {
-        //EventBus.getDefault().unregister(BasicAssistHandler.this);
+        EventBus.getDefault().unregister(BasicAssistHandler.this);
     }
 
     @Override
@@ -98,28 +99,24 @@ public abstract class BasicAssistHandler implements IAssistHandler, RemoteEventB
             Log.w(TAG, "performEventsToBeSend > process fail : is not ready");
             return;
         }
-        if (null == getEventSendCallBack()) {
-            Log.w(TAG, "performEventsToBeSend > process fail : dispatchEventCallBack is null");
-            return;
-        }
         synchronized (mEventsToBeSendQueue) {
             if (mEventsToBeSendQueue.size() == 0) {
                 return;
             }
             Log.d(TAG, "performEventsToBeSend > start cleaning up the event to send events ");
             RemoteEvent event;
+            RemoteEventBus eventBus = RemoteEventBus.getInstance();
             while (true) {
                 event = mEventsToBeSendQueue.poll();
                 if (null == event) {
                     break;
                 }
-                getEventSendCallBack().dispatchEvent(event);
+                eventBus.post(event);
             }
         }
     }
 
     public IStatusProcessBus getStatusProcessBus() {
-        //initStatusProcessBus();
         return mStatusProcessBus;
     }
 
@@ -134,21 +131,27 @@ public abstract class BasicAssistHandler implements IAssistHandler, RemoteEventB
                 BasicAssistHandler.this.onReceiveProcessStatusNotice(statusCode, data, isRemove);
             }
         };
-        //initReceiveProcessStatusNotices();
     }
 
     protected void initReceiveProcessStatusNotices() {
     }
 
     protected void onReceiveProcessStatusNotice(int statusCode, Bundle data, boolean isRemove) {
-        onReceiveProcessStatusNotice(statusCode,isRemove);
+        onReceiveProcessStatusNotice(statusCode, isRemove);
     }
 
     protected void onReceiveProcessStatusNotice(int statusCode, boolean isRemove) {
 
     }
 
-    public abstract boolean onReceiveEventNotice(RemoteEvent event);
+    @Subscribe
+    public void onReceiveEvent(RemoteEvent event) {
+        onReceiveEventNotice(event);
+    }
+
+    protected boolean onReceiveEventNotice(RemoteEvent event) {
+        return false;
+    }
 
     protected void initReceiveEventNotices() {
     }
@@ -174,33 +177,8 @@ public abstract class BasicAssistHandler implements IAssistHandler, RemoteEventB
         return mHandleRegisterRemoteEventCodeList;
     }
 
-    public BasicAssistHandler setDispatchEventCallBack(IEventBusDispatchCallback dispatchEventCallBack) {
-        mEventSendCallBack = dispatchEventCallBack;
-        //EventBus.getDefault().register(this);
-        performEventsToBeSend();
-        return BasicAssistHandler.this;
-    }
-
-    @Override
     public List<Integer> getEventReceiveList() {
         return getHandleRegisterEventCodeList();
-    }
-
-    @Override
-    public IEventBusDispatchCallback getEventDispatchCallback() {
-        if (null == mEventBusReceiveCallBack) {
-            mEventBusReceiveCallBack = new IEventBusDispatchCallback() {
-                @Override
-                public boolean dispatchEvent(RemoteEvent event) {
-                    return BasicAssistHandler.this.onReceiveEventNotice(event);
-                }
-            };
-        }
-        return mEventBusReceiveCallBack;
-    }
-
-    protected IEventBusDispatchCallback getEventSendCallBack() {
-        return mEventSendCallBack;
     }
 
     protected boolean dispatchEvent(RemoteEvent event) {
@@ -208,26 +186,12 @@ public abstract class BasicAssistHandler implements IAssistHandler, RemoteEventB
             Log.e(TAG, "dispatchEvent > process fail : event is null");
             return false;
         }
-        if (!isReady()) {
+        if (!isReady() && event.isSticky()) {
             mEventsToBeSendQueue.offer(event);
             Log.w(TAG, "dispatchEvent > process fail : is not ready ,eventCode = " + event.getCode());
             return false;
         }
-        if (null == getEventSendCallBack()) {
-            if (!event.isRemote()) {
-                EventBus.getDefault().post(event);
-                return true;
-            }
-            if (event.isDispatch2Myself()) {
-                EventBus.getDefault().post(event);
-                event.setPolicyDispatch2Myself(false);
-            }
-            mEventsToBeSendQueue.offer(event);
-            Log.w(TAG, "dispatchEvent > process fail : mDispatchEventCallBack is null ,eventCode = " + event.getCode());
-            return false;
-        }
-
-        return getEventSendCallBack().dispatchEvent(event);
+        return RemoteEventBus.getInstance().post(event);
     }
 
     protected boolean dispatchEvent(final int eventCode) {
@@ -236,7 +200,7 @@ public abstract class BasicAssistHandler implements IAssistHandler, RemoteEventB
             public int getCode() {
                 return eventCode;
             }
-        });
+        }.setRemote(false));
     }
 
     protected void runOnUiThread(Runnable runnable) {

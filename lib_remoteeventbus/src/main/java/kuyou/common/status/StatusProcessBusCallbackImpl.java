@@ -19,6 +19,7 @@ public class StatusProcessBusCallbackImpl implements IStatusProcessBusCallback<S
     private int mNoticeHandleLooperPolicy = -1;
     private int mStatusCode = -1;
     private int mThreadCode = -1;
+    private boolean isAutoExitThread = false; //运行完自动结束线程
 
     public StatusProcessBusCallbackImpl() {
     }
@@ -41,6 +42,7 @@ public class StatusProcessBusCallbackImpl implements IStatusProcessBusCallback<S
         mNoticeHandleLooper = callback.getNoticeHandleLooper();
         mNoticeHandleLooperPolicy = callback.getNoticeHandleLooperPolicy();
         mThreadCode = callback.getThreadCode();
+        isAutoExitThread = callback.isAutoExitThread();
         mDataCache[0] = callback.getData(false);
     }
 
@@ -106,9 +108,15 @@ public class StatusProcessBusCallbackImpl implements IStatusProcessBusCallback<S
     }
 
     @Override
-    public StatusProcessBusCallbackImpl setThreadCode(int val) {
+    public boolean isAutoExitThread() {
+        return isAutoExitThread;
+    }
+
+    @Override
+    public StatusProcessBusCallbackImpl setThreadCode(int val,boolean auto_exit) {
        setNoticeHandleLooperPolicy(IStatusProcessBusCallback.LOOPER_POLICY_POOL);
         mThreadCode = val;
+        isAutoExitThread = auto_exit;
         return StatusProcessBusCallbackImpl.this;
     }
 

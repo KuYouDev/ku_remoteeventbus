@@ -17,6 +17,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
+import kuyou.common.assist.BasicAssistHandler;
 import kuyou.common.assist.IAssistHandler;
 import kuyou.common.ipc.basic.IEventBusDispatchCallback;
 import kuyou.common.ipc.basic.IEventDispatcher;
@@ -51,9 +52,6 @@ public class RemoteEventBus implements IRemoteConfig {
                 }
             }
         }
-//        else if (null == sInstance.getRegisterConfig()) {
-//            throw new RuntimeException("RemoteEventBus is not register");
-//        }
         return sInstance;
     }
 
@@ -72,8 +70,8 @@ public class RemoteEventBus implements IRemoteConfig {
     private IStatusProcessBus mStatusProcessBus = null;
     private IRemoteService mEventDispatchService = null;
     private ServiceConnection mEventDispatchServiceConnection = null;
+    private BroadcastReceiver mBroadcastReceiverAutoReConnect = null;
     private List<ILiveListener> mLiveListenerList = new ArrayList<>();
-    private BroadcastReceiver mBroadcastReceiverAutoReConnect;
 
     public boolean register(Object instance, Integer... event_codes) {
         if (null == instance) {
@@ -113,14 +111,17 @@ public class RemoteEventBus implements IRemoteConfig {
         }
 
         //事件分发
-        if (instance instanceof IAssistHandler) {
-            if (null == mEventDispatcher) {
-                Log.e(mTagLog, "register > process fail : eventDispatcher is null");
-                result = false;
-            } else {
-                mEventDispatcher.setAssistHandlerConfig((IAssistHandler) instance);
-            }
-        } else {
+//        if (instance instanceof IAssistHandler) {
+//            if (null == mEventDispatcher) {
+//                Log.e(mTagLog, "register > process fail : eventDispatcher is null");
+//                result = false;
+//            } else {
+//                mEventDispatcher.setAssistHandlerConfig((IAssistHandler) instance);
+//            }
+//        } else {
+//            EventBus.getDefault().register(instance);
+//        }
+        if (instance instanceof BasicAssistHandler) {
             EventBus.getDefault().register(instance);
         }
         return result;
@@ -143,10 +144,19 @@ public class RemoteEventBus implements IRemoteConfig {
      * @action 发送本地或远程事件 <br/>
      */
     public boolean post(RemoteEvent event) {
+        if (null == event) {
+            return false;
+        }
+        if (!event.isRemote()) {
+            Log.d(mTagLog, "post > local event code = " + +event.getCode());
+            EventBus.getDefault().post(event);
+            return true;
+        }
         if (null == mEventDispatcher) {
             Log.w(mTagLog, "post > process warn : instance is not register , event_code = " + event.getCode());
             return false;
         }
+        Log.d(mTagLog, "post > event code = " + +event.getCode());
         return mEventDispatcher.dispatch(event);
     }
 
@@ -194,8 +204,8 @@ public class RemoteEventBus implements IRemoteConfig {
         }
         mStatusProcessBus = new StatusProcessBusImpl() {
             @Override
-            protected void onReceiveProcessStatusNotice(int statusCode,Bundle data, boolean isRemove) {
-                RemoteEventBus.this.onReceiveProcessStatusNotice(statusCode,data, isRemove);
+            protected void onReceiveProcessStatusNotice(int statusCode, Bundle data, boolean isRemove) {
+                RemoteEventBus.this.onReceiveProcessStatusNotice(statusCode, data, isRemove);
             }
         };
         initReceiveProcessStatusNotices();
@@ -215,7 +225,7 @@ public class RemoteEventBus implements IRemoteConfig {
                         .setNoticeHandleLooperPolicy(IStatusProcessBusCallback.LOOPER_POLICY_BACKGROUND));
     }
 
-    protected void onReceiveProcessStatusNotice(int statusCode,Bundle data, boolean isRemove) {
+    protected void onReceiveProcessStatusNotice(int statusCode, Bundle data, boolean isRemove) {
         switch (statusCode) {
             case PS_NOTICE_IPC_PROCESS_AWAKEN:
                 Log.w(mTagLog, "onReceiveProcessStatusNotice:PS_NOTICE_IPC_PROCESS_AWAKEN");
@@ -282,7 +292,10 @@ public class RemoteEventBus implements IRemoteConfig {
                 RemoteEventBus.this.dispatchEventDispatchServiceConnectChange(true);
                 try {
                     RemoteEventBus.this.mEventDispatchService.registerCallback(
-                            RemoteEventBus.this.getRegisterConfig().getContext().getApplicationContext().getPackageName(),
+                            RemoteEventBus.this.getRegisterConfig()
+                                    .getContext()
+                                    .getApplicationContext()
+                                    .getPackageName(),
                             new IRemoteServiceCallBack.Stub() {
                                 @Override
                                 public void onReceiveEvent(Bundle data) {
@@ -318,36 +331,37 @@ public class RemoteEventBus implements IRemoteConfig {
         context.bindService(intent, mEventDispatchServiceConnection, Context.BIND_AUTO_CREATE);
     }
 
-    private void registerAutoReConnect(){
-        if(null != mBroadcastReceiverAutoReConnect){
+    private void registerAutoReConnect() {
+        if (null != mBroadcastReceiverAutoReConnect) {
             return;
         }
-        if(null == getIpcFlag()){
+        if (null == getIpcFlag()) {
             //Log.d(mTagLog, "registerAutoReConnect > cancel option , getIpcFlag is null");
             return;
         }
-        if(getIpcFlag().equals(getRegisterConfig().getContext().getPackageName())){
+        if (getIpcFlag().equals(getRegisterConfig().getContext().getPackageName())) {
             //Log.d(mTagLog, "registerAutoReConnect > cancel option");
             return;
         }
         //Log.d(mTagLog, "registerAutoReConnect > option ");
-        mBroadcastReceiverAutoReConnect= new BroadcastReceiver() {
+        mBroadcastReceiverAutoReConnect = new BroadcastReceiver() {
             @Override
             public void onReceive(Context context, Intent intent) {
                 final String action = intent.getAction();
-                if(null!=action && action.equals(ACTION_IPC_BOOT)){
-                    if(null != RemoteEventBus.this.mEventDispatchService){
+                if (null != action && action.equals(ACTION_IPC_BOOT)) {
+                    if (null != RemoteEventBus.this.mEventDispatchService) {
                         //Log.d(mTagLog, "registerAutoReConnect > onReceive > cancel start reconnect ipc");
                         return;
                     }
                     Log.i(mTagLog, "registerAutoReConnect > onReceive > start reconnect ipc");
-                   RemoteEventBus.this.getStatusProcessBus().start(PS_BIND_FRAME_SERVICE);
+                    RemoteEventBus.this.getStatusProcessBus().start(PS_BIND_FRAME_SERVICE);
                 }
             }
         };
-        try{
-            getRegisterConfig().getContext().registerReceiver(mBroadcastReceiverAutoReConnect,new IntentFilter(ACTION_IPC_BOOT));
-        }catch(Exception e){
+        try {
+            getRegisterConfig().getContext()
+                    .registerReceiver(mBroadcastReceiverAutoReConnect, new IntentFilter(ACTION_IPC_BOOT));
+        } catch (Exception e) {
             Log.e(mTagLog, Log.getStackTraceString(e));
         }
     }

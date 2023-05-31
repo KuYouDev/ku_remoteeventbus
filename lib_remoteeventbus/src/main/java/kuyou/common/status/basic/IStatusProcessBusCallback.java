@@ -77,12 +77,17 @@ public interface IStatusProcessBusCallback <Impl> {
     /**
      * action:设定线程ID
      */
-    public Impl setThreadCode(int val);
+    public Impl setThreadCode(int val,boolean auto_exit);
 
     /**
      * action:获取线程ID
      */
     public int getThreadCode();
+
+    /**
+     * action:是否自动退出线程
+     */
+    public boolean isAutoExitThread();
 
     public Bundle getData(boolean isClean);
 

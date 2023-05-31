@@ -46,7 +46,6 @@ public abstract class StatusProcessBusImpl implements IStatusProcessBus {
             StatusProcessBusCallbackImpl callbackProxy = new StatusProcessBusCallbackImpl(callback) {
                 @Override
                 public void onReceiveProcessStatusNotice(boolean isRemove) {
-                    
                     StatusProcessBusImpl.this.onReceiveProcessStatusNotice(
                             mStatusProcessBusProxyFlagList.get(Integer.valueOf(getStatusProcessFlag())),
                             mStatusProcessBusCallbackList.get(Integer.valueOf(getStatusProcessFlag())).getData(true), 

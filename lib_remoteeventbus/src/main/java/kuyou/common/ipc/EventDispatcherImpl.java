@@ -24,7 +24,6 @@ import kuyou.common.ipc.event.RemoteEvent;
  * </p>
  */
 public class EventDispatcherImpl implements IEventDispatcher<EventDispatcherImpl> {
-
     private volatile static EventDispatcherImpl sInstance;
 
     public static EventDispatcherImpl getInstance() {
@@ -41,10 +40,9 @@ public class EventDispatcherImpl implements IEventDispatcher<EventDispatcherImpl
     private EventDispatcherImpl() {
     }
 
-    protected final static int MSG_RECEIVE_EVENT = 0;
     protected String mTagLog = "kuyou.common.ipc > EventDispatcherImpl";
     private String mLocalModulePackageName;
-    private List<Integer> mEventReceiveList = null;
+    private List<Integer> mEventReceiveList = new ArrayList<>();
     private Queue<RemoteEvent> mEventsToBeSendQueue = new LinkedList<>();
     private IEventBusDispatchCallback mEventBusDispatchCallbackRemote,
             mEventBusDispatchCallbackAssistHandler;
@@ -173,7 +171,9 @@ public class EventDispatcherImpl implements IEventDispatcher<EventDispatcherImpl
         }
         int eventCode = RemoteEvent.getCodeByData(data);
         //不设置 mEventReceiveList，就视为远程事件全部接收
-        if (null != getEventReceiveList() && -1 == getEventReceiveList().indexOf(eventCode)) {
+        if (null != getEventReceiveList()
+                && getEventReceiveList().size() > 0
+                && -1 == getEventReceiveList().indexOf(eventCode)) {
             //Log.d(mTagLog, "receiveEventFilterPolicy > give up event = " + eventCode);
             return -1;
         }

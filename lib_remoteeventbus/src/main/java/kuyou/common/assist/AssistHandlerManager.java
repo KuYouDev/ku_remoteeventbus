@@ -34,18 +34,11 @@ public class AssistHandlerManager implements
     private Map<Class<?>, BasicAssistHandler> mRequestParserList;
     private List<BasicAssistHandler> mHandlerList;
     private List<Integer> mAllHandleRemoteEventCode;
-    private IEventBusDispatchCallback mDispatchCallback;
 
     private AssistHandlerManager() {
         mRequestParserList = new HashMap<Class<?>, BasicAssistHandler>();
         mAllHandleRemoteEventCode = new ArrayList<>();
         mHandlerList = new ArrayList<>();
-        mDispatchCallback = new IEventBusDispatchCallback() {
-            @Override
-            public boolean dispatchEvent(RemoteEvent event) {
-                return RemoteEventBus.getInstance().post(event);
-            }
-        };
     }
 
     public static AssistHandlerManager getInstance() {
@@ -74,6 +67,7 @@ public class AssistHandlerManager implements
         }
         Class itemHandler = null;
         mContext = context.getApplicationContext();
+        boolean result = false;
         try {
             List<Class> allClass = config.getAllClasses();
             if (null == allClass || allClass.size() == 0) {
@@ -103,13 +97,16 @@ public class AssistHandlerManager implements
             for (BasicAssistHandler handler : getHandlerList()) {
                 handler.setReady(true);
             }
-            config.onFinishResult(true);
+            result = true;
         } catch (Exception e) {
             Log.e(TAG, new StringBuilder("loadHandler > process fail :auto register handler ")
-                    .append("\n handler = ").append(null != itemHandler ? itemHandler.getName() : "null")
-                    .append("\n").append(Log.getStackTraceString(e)).toString());
-            config.onFinishResult(false);
+                    .append("\n handler = ")
+                    .append(null != itemHandler ? itemHandler.getName() : "null")
+                    .append("\n")
+                    .append(Log.getStackTraceString(e))
+                    .toString());
         }
+        config.onFinishResult(result);
     }
 
     public AssistHandlerManager register(BasicAssistHandler instance) {
@@ -123,8 +120,7 @@ public class AssistHandlerManager implements
             Log.w(TAG, "register > process warn : context is null");
         }
         instance.setHandlerFinder(AssistHandlerManager.this);
-        instance.setDispatchEventCallBack(mDispatchCallback);
-
+        RemoteEventBus.getInstance().register(instance);
         mAllHandleRemoteEventCode.addAll(instance.getHandleRegisterRemoteEventCodeList());
         mRequestParserList.put(instance.getClass(), instance);
         getHandlerList().add(instance);
