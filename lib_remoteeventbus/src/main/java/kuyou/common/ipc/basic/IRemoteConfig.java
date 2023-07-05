@@ -10,6 +10,10 @@ package kuyou.common.ipc.basic;
  */
 public interface IRemoteConfig {
 
+    public static interface ThreadCode {
+        public final static int DISPATCH = 10;
+    }
+
     public final static String ACTION_FLAG_FRAME_EVENT = "action.remote.event.frame";
 
     //0~2047
