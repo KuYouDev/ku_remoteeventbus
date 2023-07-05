@@ -7,11 +7,21 @@ group = 'com.github.kuyoudev'
 //配套软硬件配置
 ext {
     moduleName = "remoteeventbus"
+    //客户名
+    projectClientName = "normal"
+
+    versionDatePattern = "yyyyMMdd_HHmm"
+    versionDate = new Date().format("${versionDatePattern}")
+
+    KeyStoreFllePath = System.getenv("ANDROID_KEY_STORE_FLLE_PATH")
+    KeyStorePassword = System.getenv("ANDROID_KEY_STORE_PASSWORD")
+    KeyAlias = System.getenv("ANDROID_KEY_ALIAS")
+    KeyPassword = System.getenv("ANDROID_KEY_PASSWORD")
 }
 android {
     signingConfigs {
         release {
-            storeFile file("${rootProject.ext.KeyStoreFllePath}")
+            storeFile file("${project.ext.KeyStoreFllePath}")
             storePassword KeyStorePassword
             keyAlias KeyAlias
             keyPassword KeyPassword
@@ -58,82 +68,11 @@ dependencies {
 
 //added by wgx
 def versionNumberCustom() {
-
     def buildType = "debug"
-    if (isReleaseBuildType()) {
-        buildType = "release"
-    }
-
-    return "${rootProject.ext.projectMainAuthorName}_${rootProject.ext.projectClientName}_${rootProject.ext.projectHardwareName}_${project.moduleName}_${buildType}_${rootProject.ext.versionDate}";
-}
-
-boolean isReleaseBuildType() {
     for (String s : gradle.startParameter.taskNames) {
         if (s.contains("Release") | s.contains("release")) {
-            return true
+            buildType = "release"
         }
     }
-    return false
-}
-
-task copyProguardDictionary(type: Copy) {
-    setGroup('kuyou')
-    setDescription('task study')
-    dependsOn 'createProguardDictionary2Common'
-    println "-------------------------> copy common proguard-keys <-------------------------"
-    from rootProject.rootDir.path + '/build/dictionary.txt'
-    into project.getBuildDir().path + "/outputs/aar/proguard"
-}
-
-//插入混淆字典文件
-project.tasks.whenTaskAdded { Task theTask ->
-    if (theTask.name.startsWith("assemble") | theTask.name.startsWith("install")) {
-        theTask.dependsOn(copyProguardDictionary)
-        theTask.mustRunAfter(copyProguardDictionary)
-    }
-}
-
-task createProguardDictionary2Common {
-    setGroup('kuyou')
-    setDescription('task study')
-
-    outputs.file(rootProject.rootDir.path + '/build/dictionary.txt')
-    doLast {
-        println "-------------------------> create common proguard-keys <-------------------------"
-        def r = new Random()
-        def start = r.nextInt(100) + 0x100
-        def end = start + 0x2000 // 如果字典太大了，可以将start~end范围缩小
-        def chars = (start..end)
-                .findAll { Character.isValidCodePoint(it) && Character.isJavaIdentifierPart(it) }
-                .collect { String.valueOf(Character.toChars(it)) }
-        int max = chars.size()
-        def startChars = []
-        def dict = []
-        // 筛选可用作java标识符开头的char
-        for (int i = 0; i < max; i++) {
-            char c = chars.get(i).charAt(0)
-            if (Character.isJavaIdentifierStart(c)) {
-                startChars << String.valueOf(c)
-            }
-        }
-        def startSize = startChars.size()
-        // 打乱顺序
-        Collections.shuffle(chars, r)
-        Collections.shuffle(startChars, r)
-        // 拼两个char为一个词，让字典更丰富
-        for (int i = 0; i < max; i++) {
-            def m = r.nextInt(startSize - 3)
-            def n = m + 3
-            (m..n).each { j ->
-                dict << (startChars.get(j) + chars.get(i))
-            }
-        }
-
-        def f = outputs.files.getSingleFile()
-        f.getParentFile().mkdirs()
-        f.withWriter("UTF-8") {
-            it.write(startChars.join(System.lineSeparator()))
-            it.write(dict.join(System.lineSeparator()))
-        }
-    }
+    return "Kuyou_${project.ext.projectClientName}_u_${project.moduleName}_${buildType}_${project.ext.versionDate}";
 }
